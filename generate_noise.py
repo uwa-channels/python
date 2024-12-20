@@ -4,7 +4,6 @@ from fractions import Fraction
 
 
 def generate_noise(input, fs, array_index, noise, noise_option):
-
     Fs = noise["Fs"][0, 0]  # Sampling rate of the original recording.
     fc_exp = noise["fc"][0, 0]  # Center frequency of the original recording.
     R_exp = noise["R"][0, 0]  # Symbol rate of the original recording.
@@ -49,3 +48,6 @@ def generate_noise(input, fs, array_index, noise, noise_option):
 
 def pwr(x):
     return np.mean(np.abs(x) ** 2, axis=0)
+
+
+# [EOF]
