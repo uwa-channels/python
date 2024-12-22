@@ -32,10 +32,9 @@ def replay(input, fs, array_index, channel, start=None):
     output = np.zeros((T + L, M), dtype=complex)
     channel_time = np.arange(h_hat_real.shape[0]) / fs_time
     signal_time = np.arange(start, start + T + L) / fs_delay
-    actual_time = np.arange(h_hat_real.shape[0]) / fs_time
     for m in range(M):
-        ir_real = CubicSpline(actual_time, np.squeeze(h_hat_real[:, m, :]))(signal_time)
-        ir_imag = CubicSpline(actual_time, np.squeeze(h_hat_imag[:, m, :]))(signal_time)
+        ir_real = CubicSpline(channel_time, np.squeeze(h_hat_real[:, m, :]))(signal_time)
+        ir_imag = CubicSpline(channel_time, np.squeeze(h_hat_imag[:, m, :]))(signal_time)
         ir = ir_real + 1j * ir_imag
         for t in np.arange(T + L - 1):
             output[t, m] = np.sum(ir[t, :] * baseband[t : t + L]) * np.exp(1j * theta_hat[t, array_index[m]])
