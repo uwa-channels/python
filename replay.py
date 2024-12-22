@@ -13,64 +13,36 @@ def replay(input, fs, array_index, channel, start=None):
     fs_time = channel["params"]["fs_time"][0, 0]
     fc = channel["params"]["fc"][0, 0]
     M = len(array_index)
-    Ts = 1.0 / fs_delay
-    Tr = Ts / 2.0
-    offset = 200
-
-    T_max, _, L = h_hat_real.shape
-    T_max = np.floor((T_max - 1) / fs_time * fs_delay)
+    L = h_hat_real.shape[2]
 
     ## Step 2: convert baseband and resample the signal to fs_delay
-    baseband = input * np.exp(-2j * np.pi * fc * np.arange(input.shape[0]) / fs)
     frac = Fraction(fs_delay / fs).limit_denominator()
+    baseband = input * np.exp(-2j * np.pi * fc * np.arange(input.shape[0]) / fs)
     baseband = sg.resample_poly(baseband, frac.numerator, frac.denominator)
     T = baseband.shape[0]
-    baseband = np.concatenate(
-        (
-            np.zeros(
-                L - 1,
-            ),
-            baseband,
-            np.zeros(
-                L - 1,
-            ),
-        )
-    )
-
-    ## Step 3: pre-allocation
-    output = np.zeros((baseband.shape[0] + offset, M), dtype=complex)
 
     ## Step 4: assign random start point in time
+    T_max = h_hat_real.shape[0] / fs_time * fs_delay * 1.0
     if start is None:
         start = np.random.randint(low=0, high=T_max - T)
 
     ## Step 5: convolution
+    buffer = np.zeros((L - 1,))
+    baseband = np.concatenate((buffer, baseband, buffer))
+    output = np.zeros((T + L, M), dtype=complex)
+    channel_time = np.arange(h_hat_real.shape[0]) / fs_time
+    signal_time = np.arange(start, start + T + L) / fs_delay
     actual_time = np.arange(h_hat_real.shape[0]) / fs_time
     for m in range(M):
-        ir_real = CubicSpline(actual_time, np.squeeze(h_hat_real[:, m, :]))(np.arange(start, start + T) / fs_delay)
-        ir_imag = CubicSpline(actual_time, np.squeeze(h_hat_imag[:, m, :]))(np.arange(start, start + T) / fs_delay)
+        ir_real = CubicSpline(actual_time, np.squeeze(h_hat_real[:, m, :]))(signal_time)
+        ir_imag = CubicSpline(actual_time, np.squeeze(h_hat_imag[:, m, :]))(signal_time)
         ir = ir_real + 1j * ir_imag
+        for t in np.arange(T + L - 1):
+            output[t, m] = np.sum(ir[t, :] * baseband[t : t + L]) * np.exp(1j * theta_hat[t, array_index[m]])
+        drift = theta_hat[np.arange(start, start + T + L), array_index[m]] / (2 * np.pi * fc)
+        output[:, m] = CubicSpline(signal_time, output[:, m])(signal_time + drift)
 
-        for t in np.arange(T):
-            output[t + offset, m] = np.sum(ir[t, :] * baseband[t : t + L]) * np.exp(
-                1j * theta_hat[t + start, array_index[m]]
-            )
-
-    ## Step 6: insert the delay back
-    y = np.zeros(output.shape, dtype=complex)
-    frac = Fraction(Ts / Tr).limit_denominator()
-    output = sg.resample_poly(output, frac.numerator, frac.denominator)
-    t = np.arange(T)
-    for m in range(M):
-        tn = t * Ts + theta_hat[t + start, array_index[m]] / (2 * np.pi * fc)
-        tln = np.floor(tn / Tr) * Tr
-        trn = np.ceil(tn / Tr) * Tr
-        alpha = (tn - tln) / Tr
-        y[t + offset, m] = (1 - alpha) * output[np.astype(np.floor(tln / Tr), int) + offset, m] + alpha * output[
-            np.astype(np.ceil(trn / Tr), int) + offset, m
-        ]
-    output = y
-
+    ## Step 6: resample to match the original sampling rate and upshift to fc
     frac = Fraction(fs / fs_delay).limit_denominator()
     output = sg.resample_poly(output, frac.numerator, frac.denominator)
     output = np.real(output * np.exp(2j * np.pi * fc * np.arange(len(output))[:, None] / fs))
