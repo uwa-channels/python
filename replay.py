@@ -42,8 +42,7 @@ def replay(input, fs, array_index, channel, start=None):
         output[:, m] = CubicSpline(signal_time, output[:, m])(signal_time + drift)
 
     ## Step 6: resample to match the original sampling rate and upshift to fc
-    frac = Fraction(fs / fs_delay).limit_denominator()
-    output = sg.resample_poly(output, frac.numerator, frac.denominator)
+    output = sg.resample_poly(output, frac.denominator, frac.numerator)
     output = np.real(output * np.exp(2j * np.pi * fc * np.arange(len(output))[:, None] / fs))
     output /= np.sqrt(np.sum(pwr(output)))
 
