@@ -4,11 +4,9 @@ from fractions import Fraction
 
 
 def generate_noise(input, fs, array_index, noise, noise_option):
-    Fs = noise["Fs"][0, 0]  # Sampling rate of the original recording.
-    fc_exp = noise["fc"][0, 0]  # Center frequency of the original recording.
-    R_exp = noise["R"][0, 0]  # Symbol rate of the original recording.
-    fmin = fc_exp - R_exp / 2 - 100
-    fmax = fc_exp + R_exp / 2 + 100
+    Fs = noise["Fs"][0, 0]
+    fmin = 0
+    fmax = Fs / 2
 
     frac = Fraction(fs / Fs).limit_denominator()
     signal_size = np.array(input.shape)
@@ -23,7 +21,7 @@ def generate_noise(input, fs, array_index, noise, noise_option):
         H_oneside[: np.astype(np.floor(fmin / (Fs / 2 / nfft)), int)] = 0
         H_oneside[np.astype(np.ceil(fmax / (Fs / 2 / nfft)), int) :] = 0
         H = np.sqrt(np.concatenate((H_oneside, H_oneside[1::-1])))
-        h = np.fft.fftshift(np.fft.irfft(H))
+        h = np.real(np.fft.fftshift(np.fft.ifft(H)))
         w = np.random.randn(signal_size[0], signal_size[1])
         for m in range(signal_size[1]):
             w[:, m] = np.convolve(w[:, m], h, "same")
