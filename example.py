@@ -4,6 +4,7 @@ import h5py
 import matplotlib.pyplot as plt
 from replay import replay
 from generate_noise import generate_noise
+from generate_impulsive_noise import generate_impulsive_noise
 
 
 if __name__ == "__main__":
@@ -16,7 +17,7 @@ if __name__ == "__main__":
     fc = 13e3
     R = 4e3
     n_repeat = 10
-    array_index = np.array([1, 3, 5])
+    array_index = np.array([0, 2, 4])
 
     ## Generate single carrier signals
     data_symbols = np.random.choice([-1.0, +1.0], size=(1023,))
@@ -29,6 +30,7 @@ if __name__ == "__main__":
 
     ## Add the noise
     output += 0.05 * generate_noise(output, fs, array_index, noise, 3)
+    # output += 0.05 * generate_impulsive_noise(output, fs, array_index, noise)
 
     ## Downconvert
     v = output * np.exp(-2j * np.pi * fc * np.arange(output.shape[0])[:, None] / fs)
