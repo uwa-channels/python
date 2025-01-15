@@ -4,7 +4,7 @@ Python toolbox to apply underwater acoustic channels to a signal of your choice.
 
 Please report bugs and suggest enhancements by [creating a new issue](https://github.com/uwa-channels/replay_python/issues). We are always excited to have people contribute to this repository. See [CONTRIBUTING.MD](CONTRIBUDING.md) for more information.
 
-## Using the Replay toolbox
+## Using the replay toolbox
 
 This code repository contains the Python function `replay` and noise generation functions `generate_noise` and `generate_impulsive_noise`. To replay your desired signal, download mat files from [here](https://www.dropbox.com/scl/fo/3gyt4cgw47jfx716v0epd/AIqYaL5S2RxGylREu3sn-vY?rlkey=w2mvoklkm42zrrf6k6lwlzcxu&st=u3u6b5r9&dl=0), and store them in a folder where Python can find them.
 
