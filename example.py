@@ -9,8 +9,8 @@ from generate_impulsive_noise import generate_impulsive_noise
 
 if __name__ == "__main__":
 
-    channel = h5py.File("blue_3.mat", "r")
-    noise = h5py.File("blue_3_noise.mat", "r")
+    channel = h5py.File("blue_1.mat", "r")
+    noise = h5py.File("blue_1_noise.mat", "r")
 
     ## Parameters
     fs = 96e3
