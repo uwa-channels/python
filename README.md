@@ -2,7 +2,7 @@
 
 Python toolbox to apply underwater acoustic channels to a signal of your choice. To learn more about the channels, check out the [documentation](https://uwa-channels.github.io/). 
 
-Please report bugs and suggest enhancements by [creating a new issue](https://github.com/uwa-channels/replay_python/issues). We are always excited to have you contributing to this repository! See [CONTRIBUTING.MD](CONTRIBUDING.md) for more information.
+Please report bugs and suggest enhancements by [creating a new issue](https://github.com/uwa-channels/replay_python/issues). We are always excited to have you contributing to this repository! See [CONTRIBUTING.MD](CONTRIBUTING.md) for more information.
 
 ## Using the replay toolbox
 
