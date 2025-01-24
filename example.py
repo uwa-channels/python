@@ -35,6 +35,12 @@ if __name__ == "__main__":
     ## Downconvert
     v = output * np.exp(-2j * np.pi * fc * np.arange(output.shape[0])[:, None] / fs)
 
+    ## Plot the time domain signal
+    plt.figure()
+    plt.plot(np.arange(output.shape[0]) / fs, output)
+    plt.xlabel("Time [s]")
+    plt.ylabel("Received signal")
+
     ## Plot the correlation
     plt.figure()
     plt.plot(np.abs(np.correlate(v[:, 0], sg.resample_poly(data_symbols[:128], fs / R, 1), "full")))
@@ -46,9 +52,11 @@ if __name__ == "__main__":
     f, pxx_den = sg.welch(
         output[:, 0], fs, detrend=False, window=sg.get_window(("kaiser", 0.5), 1024), noverlap=512, nfft=4096
     )
-    plt.plot(f, 10 * np.log10(pxx_den))
+    plt.plot(f / 1e3, 10 * np.log10(pxx_den))
+    plt.xlim(np.array([fc - R, fc + R]) / 1e3)
     plt.xlabel("Frequency (kHz)")
     plt.ylabel("Power/frequency (dB/Hz)")
+    plt.grid()
     plt.title("Welch Power Spectral Density Estimate")
 
     plt.show()
