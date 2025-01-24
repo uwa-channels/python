@@ -14,8 +14,9 @@ To install the requirements,
 pip install -r requirements.txt
 ```
 
-In `example.py`, the `blue_1` channel is used. The `blue_1.mat` contains the channel impulse responses, and the `blue_1_noise.mat` contains the noise statistics extracted from the same recording. The script generates a single-carrier modulated BPSK signal consisting of `n_repeat` repetitions of a pseudo-random sequence, passes the signal through the `blue_1` channel, and adds noise. Two plots are displayed, one showing the cross-correlation between the received signal and the transmitted signal, where `n_repeat` peaks are visible, and another showing the spectrum of the received signal.
+In `example.py`, the `blue_1` channel is used. The `blue_1.mat` contains the channel impulse responses, while the `blue_1_noise.mat` contains the noise statistics extracted from the same recording. The script generates a single-carrier modulated BPSK signal consisting of `n_repeat` repetitions of a pseudo-random sequence, passes the signal through the `blue_1` channel, and adds `blue_1` noise. Three plots are displayed: the received signal amplitude in time, the cross-correlation between the received signal and the transmitted signal, where `n_repeat` peaks are visible, and the the spectrum of the received signal. Multiple curves on each plot correspond to multiple receiving elements.
 
+> [!NOTE]
 Note that the `generate_impulsive_noise` function requires the `red_noise.mat` to be loaded.
 
 # License
