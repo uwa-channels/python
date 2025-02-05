@@ -31,12 +31,8 @@ def generate_noise(input, fs, array_index, noise, noise_option):
         w = np.zeros(signal_size)
         for m in range(signal_size[1]):
             w[:, m] = np.convolve(n[:, array_index[m]], noise["h"][array_index[m], :], "same")
-    # Generate noise according to the fitted power spectral density of the measured noise.
-    elif noise_option == 3:
-        n = np.random.randn(signal_size[0], len(noise["sigma"])) @ np.linalg.cholesky(noise["sigma"])
-        w = np.zeros(signal_size)
-        for m in range(signal_size[1]):
-            w[:, m] = np.convolve(n[:, array_index[m]], noise["h_fit"][array_index[m], :], "same")
+    else:
+        raise ValueError("Wrong noise_option.")
 
     w = sg.resample_poly(w, frac.numerator, frac.denominator)
     w /= np.sqrt(np.sum(pwr(w)))

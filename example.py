@@ -29,7 +29,7 @@ if __name__ == "__main__":
     output = replay(input, fs, array_index, channel)
 
     ## Add the noise
-    output += 0.05 * generate_noise(output, fs, array_index, noise, 3)
+    output += 0.05 * generate_noise(output, fs, array_index, noise, 2)
     # output += 0.05 * generate_impulsive_noise(output, fs, array_index, noise)
 
     ## Downconvert
