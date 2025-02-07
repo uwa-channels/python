@@ -10,7 +10,7 @@ def generate_noise(input, fs, array_index, noise, noise_option):
 
     frac = Fraction(fs / Fs).limit_denominator()
     signal_size = np.array(input.shape)
-    signal_size[0] = np.astype(np.ceil(signal_size[0] / fs * Fs), int)
+    signal_size[0] = np.ceil(signal_size[0] / fs * Fs).astype(int)
 
     # Generate textbook style noise: independent Gaussian noise (17dB/decade) across array elements.
     if noise_option == 1:
