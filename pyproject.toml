@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uwa-channels-replay"  # Change to your package name
+version = "0.1.0"
+description = "A package for replaying signals through underwater acoustic channels."
+authors = [{name = "Zhengnan Li", email = "uwa-channels@ofdm.link"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.7"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "h5py"
+]
+
+[project.urls]
+Homepage = "https://github.com/uwa-channels/replay_python"
+Documentation = "https://uwa-channels.github.io/"
+Repository = "https://github.com/uwa-channels/replay_python"
+Issues = "https://github.com/uwa-channels/replay_python/issues"
+

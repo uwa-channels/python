@@ -2,9 +2,7 @@ import numpy as np
 import scipy.signal as sg
 import h5py
 import matplotlib.pyplot as plt
-from replay import replay
-from generate_noise import generate_noise
-from generate_impulsive_noise import generate_impulsive_noise
+from replay_python import replay, generate_noise, generate_impulsive_noise
 
 
 if __name__ == "__main__":
