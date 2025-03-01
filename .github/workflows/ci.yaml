@@ -1,11 +1,8 @@
 name: CI
 
-on:
+on: 
   workflow_dispatch:
   push:
-    paths:
-      - '*.m'
-      - 'tests/*.m'
 
 jobs:
   build:
