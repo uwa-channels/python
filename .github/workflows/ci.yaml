@@ -26,10 +26,11 @@ jobs:
 
       - name: Test code
         run: |
-          pip install pytest
+          pip install pytest pytest-cov
           PYTHONPATH=src pytest --cov --cov-report xml:coverage.xml
 
       - uses: codecov/codecov-action@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version = '3.13'
         with:
           file: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
