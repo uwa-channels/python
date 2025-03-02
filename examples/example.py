@@ -7,8 +7,8 @@ from replay_python import replay, generate_noise, generate_impulsive_noise
 
 if __name__ == "__main__":
 
-    channel = h5py.File("blue_1.mat", "r")
-    noise = h5py.File("blue_1_noise.mat", "r")
+    channel = h5py.File("/home/paulli/Data/extracted/blue_1.mat", "r")
+    noise = h5py.File("/home/paulli/Data/extracted/blue_1_noise.mat", "r")
 
     ## Parameters
     fs = 96e3
