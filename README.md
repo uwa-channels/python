@@ -3,7 +3,7 @@
 
 # Replay - Python
 
-[![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=fff)](https://shields.io)
+[![Generic badge](https://img.shields.io/badge/Python-3.10-BLUE.svg)](https://shields.io/)
 
 Python toolbox to apply underwater acoustic channels to a signal of your choice. To learn more about the channels, check out the [documentation](https://uwa-channels.github.io/). 
 
