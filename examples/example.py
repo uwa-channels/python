@@ -11,7 +11,7 @@ if __name__ == "__main__":
     noise = h5py.File("/home/paulli/Data/extracted/blue_1_noise.mat", "r")
 
     ## Parameters
-    fs = 96e3
+    fs = 48e3
     fc = 13e3
     R = 4e3
     n_repeat = 10
@@ -25,9 +25,11 @@ if __name__ == "__main__":
 
     ## Replay and generate noise
     output = replay(input, fs, array_index, channel)
+    # output = replay(input, fs, array_index, channel, start=1000)
 
     ## Add the noise
-    output += 0.05 * generate_noise(output, fs, array_index, noise, 2)
+    # output += 0.05 * generate_noise(output.shape, fs, noise, 1)
+    output += 0.05 * generate_noise(output.shape, fs, noise, 2, array_index=array_index)
     # output += 0.05 * generate_impulsive_noise(output, fs, array_index, noise)
 
     ## Downconvert
@@ -47,12 +49,9 @@ if __name__ == "__main__":
 
     ## Plot the Welch spectrum
     plt.figure()
-    f, pxx_den = sg.welch(
-        output[:, 0], fs, detrend=False, window=sg.get_window(("kaiser", 0.5), 1024), noverlap=512, nfft=4096
-    )
-    plt.plot(f / 1e3, 10 * np.log10(pxx_den))
-    plt.xlim(np.array([fc - R, fc + R]) / 1e3)
-    plt.xlabel("Frequency (kHz)")
+    plt.psd(output[:, 0], NFFT=8192, Fs=fs)
+    plt.xlim(np.array([fc - R, fc + R]))
+    plt.xlabel("Frequency (Hz)")
     plt.ylabel("Power/frequency (dB/Hz)")
     plt.grid()
     plt.title("Welch Power Spectral Density Estimate")

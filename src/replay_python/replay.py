@@ -25,6 +25,7 @@ def replay(input, fs, array_index, channel, start=None):
     T_max = h_hat_real.shape[0] / fs_time * fs_delay * 1.0
     if start is None:
         start = np.random.randint(low=0, high=T_max - T - L)
+    print(f"Start = {start}")
 
     # Step 4: convolution
     buffer = np.zeros((L - 1,))
