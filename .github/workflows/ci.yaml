@@ -24,13 +24,44 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Test code
+      - name: Unit test
         run: |
           pip install pytest pytest-cov
           PYTHONPATH=src pytest --cov --cov-report xml:coverage.xml
+
+      - name: Smoke test
+        run: |
+          pip install -r requirements.txt
+          PYTHONPATH=src python examples/example.py
 
       - uses: codecov/codecov-action@v4
         if: matrix.python-version == '3.13'
         with:
           file: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+
+      - name: Install build dependencies
+        run: pip install build
+
+      - name: Build package
+        run: python -m build
+
+      # - name: Upload package artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: dist
+      #     path: dist/
