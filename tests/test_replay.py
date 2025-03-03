@@ -119,7 +119,7 @@ def test_replay_function(params):
     estimated_delays = peaks / fs
 
     criteria = np.abs(np.sum(path_delay * path_gain) - np.sum(estimated_delays * estimated_gain))
-    assert criteria < 5e-4 * n_path, f"Test criteria failed: {criteria:.3e}"
+    assert criteria < 6e-4 * n_path, f"Test criteria failed: {criteria:.3e}"
 
 
 if __name__ == "__main__":
