@@ -4,7 +4,7 @@ from scipy.stats import levy_stable
 from fractions import Fraction
 
 
-def generate_impulsive_noise(input, fs, array_index, noise):
+def generate_impulsive_noise(input, fs, noise, array_index):
     Fs = noise["Fs"][0, 0]
     alpha = noise["alpha"]
     beta = np.array(noise["beta"]).T

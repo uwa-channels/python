@@ -3,20 +3,14 @@ import scipy.signal as sg
 from fractions import Fraction
 
 
-def generate_noise(input_shape, fs, noise, noise_option, array_index=[0]):
-    if noise_option == 1:
-        Fs = fs
-    else:
+def generate_noise(input_shape, fs, noise=None, array_index=[0]):
+    if noise is not None:
         Fs = noise["Fs"][0, 0]
 
-    frac = Fraction(fs / Fs).limit_denominator()
-    signal_size = np.array(input_shape)
-    signal_size[0] = np.ceil(signal_size[0] / fs * Fs).astype(int)
-
     # Generate textbook style noise: independent Gaussian noise (17dB/decade) across array elements.
-    if noise_option == 1:
+    if noise is None:
         white_noise = np.random.randn(input_shape[0], input_shape[1])
-        freqs = np.fft.rfftfreq(input_shape[0], d=1 / Fs)
+        freqs = np.fft.rfftfreq(input_shape[0], d=1 / fs)
         spectrum = np.fft.rfft(white_noise, axis=0)
         alpha = 1.7  # 1/f^alpha
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -26,18 +20,21 @@ def generate_noise(input_shape, fs, noise, noise_option, array_index=[0]):
         w /= np.sqrt(pwr(w))
 
     # Generate noise according to statistics collected during experiment.
-    elif noise_option == 2:
+    elif noise is not None:
+        frac = Fraction(fs / Fs).limit_denominator()
+        signal_size = np.array(input_shape)
+        signal_size[0] = np.ceil(signal_size[0] / fs * Fs).astype(int)
         h = np.array(noise["h"])
         h /= np.sqrt(pwr(h.T))[:, None]
         n = np.random.randn(signal_size[0], noise["sigma"].shape[0]) @ np.linalg.cholesky(noise["sigma"])
         w = np.zeros(signal_size)
         for m in range(signal_size[1]):
             w[:, m] = sg.fftconvolve(n[:, array_index[m]], h[array_index[m], :], "same")
-        print(pwr(w))
+        w = sg.resample_poly(w, frac.numerator, frac.denominator)
+
     else:
         raise ValueError("Wrong noise_option.")
 
-    w = sg.resample_poly(w, frac.numerator, frac.denominator)
     w /= np.sqrt(np.sum(pwr(w)))
     w = w[: input_shape[0], :]
     return w
