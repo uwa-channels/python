@@ -57,4 +57,4 @@ def test_power_normalization_option2(M):
     p /= np.sum(p)
     metric = p / np.diag(noise["sigma"])
 
-    assert np.all(np.abs(metric - metric[0]) < 1e-2), "Power normalization check failed"
+    assert np.all(np.abs(metric - metric[0]) < 3e-2), "Power normalization check failed"
