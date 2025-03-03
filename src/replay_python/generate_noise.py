@@ -27,7 +27,8 @@ def generate_noise(input_shape, fs, noise, noise_option, array_index=[0]):
 
     # Generate noise according to statistics collected during experiment.
     elif noise_option == 2:
-        h = noise["h"] / np.sqrt(pwr(noise["h"].T))[:, None]
+        h = np.array(noise["h"])
+        h /= np.sqrt(pwr(h.T))[:, None]
         n = np.random.randn(signal_size[0], noise["sigma"].shape[0]) @ np.linalg.cholesky(noise["sigma"])
         w = np.zeros(signal_size)
         for m in range(signal_size[1]):
