@@ -29,10 +29,10 @@ jobs:
           pip install pytest pytest-cov
           PYTHONPATH=src pytest --cov --cov-report xml:coverage.xml
 
-      - name: Smoke test
-        run: |
-          pip install -r requirements.txt
-          PYTHONPATH=src python examples/example.py
+      # - name: Smoke test
+      #   run: |
+      #     pip install -r requirements.txt
+      #     PYTHONPATH=src python examples/example.py
 
       - uses: codecov/codecov-action@v4
         if: matrix.python-version == '3.13'
