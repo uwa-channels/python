@@ -1,5 +1,5 @@
 [![CI](https://github.com/uwa-channels/replay_python/actions/workflows/ci.yaml/badge.svg)](https://github.com/uwa-channels/replay_python/actions/workflows/ci.yaml)
-[![codecov](https://codecov.io/gh/uwa-channels/replay_python/graph/badge.svg)](https://codecov.io/gh/uwa-channels/replay_python)
+[![codecov](https://codecov.io/gh/uwa-channels/replay_python/graph/badge.svg?token=0VK4040WNU)](https://codecov.io/gh/uwa-channels/replay_python)
 
 # Replay - Python
 
