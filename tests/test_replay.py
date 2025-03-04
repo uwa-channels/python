@@ -4,8 +4,12 @@ import scipy.signal as sg
 from replay_python.replay import replay
 
 
+@pytest.fixture(autouse=True)
+def set_random_seed():
+    np.random.seed(1994)
+
+
 def generate_mock_channel(fs_delay=8e3, fs_time=20, fc=13e3, M=5, L=100, T=400):
-    """Generate a mock channel dataset with expected structures."""
     h_hat_real = np.random.randn(T, M, L)
     h_hat_imag = np.random.randn(T, M, L)
     theta_hat = np.random.randn(np.ceil(T * fs_delay / fs_time).astype(int), M)

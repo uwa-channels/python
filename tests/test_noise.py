@@ -3,6 +3,11 @@ import numpy as np
 from replay_python import generate_noise
 
 
+@pytest.fixture(autouse=True)
+def set_random_seed():
+    np.random.seed(1994)
+
+
 def generate_mock_noise(fs, M=4, sigma=None):
     if sigma is None:
         sigma = np.eye(M)
