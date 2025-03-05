@@ -28,8 +28,8 @@ if __name__ == "__main__":
     # output = replay(input, fs, array_index, channel, start=1000)
 
     ## Add the noise
-    # output += 0.05 * generate_noise(output.shape, fs)
-    output += 0.05 * generate_noise(output.shape, fs, noise, array_index)
+    output += 0.05 * generate_noise(output.shape, fs)
+    # output += 0.05 * generate_noise(output.shape, fs, noise, array_index)
     # output += 0.05 * generate_impulsive_noise(output, fs, array_index, noise)
 
     ## Downconvert
@@ -50,8 +50,7 @@ if __name__ == "__main__":
     ## Plot the Welch spectrum
     plt.figure()
     plt.psd(output[:, 0], NFFT=8192, Fs=fs)
-    # plt.xlim(np.array([fc - R, fc + R]))
-    plt.xscale('log')
+    plt.xlim(np.array([fc - R, fc + R]))
     plt.xlabel("Frequency (Hz)")
     plt.ylabel("Power/frequency (dB/Hz)")
     plt.grid()
