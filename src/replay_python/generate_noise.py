@@ -17,6 +17,7 @@ def generate_noise(input_shape, fs, noise=None, array_index=[0]):
             filter_shape = np.where(freqs > 0, 1 / (freqs ** (alpha / 2)), 1)
         filtered_spectrum = spectrum * filter_shape[:, None]
         w = np.fft.irfft(filtered_spectrum, n=input_shape[0], axis=0)
+        w -= np.mean(w, axis=0)
         w /= np.sqrt(pwr(w))
 
     # Generate noise according to statistics collected during experiment.
@@ -31,12 +32,13 @@ def generate_noise(input_shape, fs, noise=None, array_index=[0]):
         for m in range(signal_size[1]):
             w[:, m] = sg.fftconvolve(n[:, array_index[m]], h[array_index[m], :], "same")
         w = sg.resample_poly(w, frac.numerator, frac.denominator)
+        w -= np.mean(w, axis=0)
+        w /= np.sqrt(np.sum(pwr(w)))
+        w = w[: input_shape[0], :]
 
     else:
         raise ValueError("Wrong noise_option.")
 
-    w /= np.sqrt(np.sum(pwr(w)))
-    w = w[: input_shape[0], :]
     return w
 
 
