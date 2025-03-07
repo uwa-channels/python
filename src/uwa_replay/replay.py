@@ -5,7 +5,7 @@ from fractions import Fraction
 
 
 def replay(input, fs, array_index, channel, start=None):
-    # Step 1: unpacking variables
+    # Unpacking variables
     h_hat_real = np.array(channel["h_hat"]["real"])
     h_hat_imag = np.array(channel["h_hat"]["imag"])
     theta_hat = np.array(channel["theta_hat"])
@@ -15,19 +15,19 @@ def replay(input, fs, array_index, channel, start=None):
     M = len(array_index)
     L = h_hat_real.shape[2]
 
-    # Step 2: convert baseband and resample the signal to fs_delay
+    # Convert baseband and resample the signal to fs_delay
     frac = Fraction(fs_delay / fs).limit_denominator()
     baseband = input * np.exp(-2j * np.pi * fc * np.arange(input.shape[0]) / fs)
     baseband = sg.resample_poly(baseband, frac.numerator, frac.denominator)
     T = baseband.shape[0]
 
-    # Step 3: assign random start point in time
+    # Assign random start point in time
     T_max = h_hat_real.shape[0] / fs_time * fs_delay * 1.0
     if start is None:
         start = np.random.randint(low=0, high=T_max - T - L)
     print(f"Start = {start}")
 
-    # Step 4: convolution
+    # Convolution
     buffer = np.zeros((L - 1,))
     baseband = np.concatenate((buffer, baseband, buffer))
     output = np.zeros((T + L, M), dtype=complex)
@@ -42,7 +42,7 @@ def replay(input, fs, array_index, channel, start=None):
         drift = theta_hat[np.arange(start, start + T + L), array_index[m]] / (2 * np.pi * fc)
         output[:, m] = CubicSpline(signal_time, output[:, m])(signal_time + drift)
 
-    # Step 5: resample to match the original sampling rate and upshift to fc
+    # Resample to match the original sampling rate and upshift to fc
     output = sg.resample_poly(output, frac.denominator, frac.numerator)
     output = np.real(output * np.exp(2j * np.pi * fc * np.arange(len(output))[:, None] / fs))
     output /= np.sqrt(np.sum(pwr(output)))

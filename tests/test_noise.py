@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from replay_python import generate_noise
+from uwa_replay import generate_noise
 
 
 @pytest.fixture(autouse=True)

@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import scipy.signal as sg
-from replay_python.replay import replay
+from uwa_replay import replay
 
 
 @pytest.fixture(autouse=True)
