@@ -1,7 +1,8 @@
 import pytest
 import numpy as np
 import scipy.signal as sg
-from uwa_replay import replay
+import matplotlib.pyplot as plt
+from uwa_replay import replay, unpack
 
 
 @pytest.fixture(autouse=True)
@@ -123,6 +124,76 @@ def test_replay_function(params):
 
     criteria = np.abs(np.sum(path_delay * path_gain) - np.sum(estimated_delays * estimated_gain))
     assert criteria < 6e-4 * n_path, f"Test criteria failed: {criteria:.3e}"
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "fs_delay": 8e3,
+            "fs_time": 20,
+            "fc": 13e3,
+            "Tmp": 15e-3,
+            "R": 4e3,
+            "channel_time": 10,
+            "n_path": 10,
+        },
+        {
+            "fs_delay": 16e3,
+            "fs_time": 10,
+            "fc": 10e3,
+            "Tmp": 25e-3,
+            "R": 4e3,
+            "channel_time": 10,
+            "n_path": 10,
+        },
+    ],
+)
+def test_unpack_function(params):
+    fs_delay = params["fs_delay"]
+    fs_time = params["fs_time"]
+    fc = params["fc"]
+    Tmp = params["Tmp"]
+    R = params["R"]
+    channel_time = params["channel_time"]
+    n_path = params["n_path"]
+
+    path_delay = np.sort(randsamples(np.arange(Tmp * 1e3), n_path)) / 1e3
+    path_delay -= np.min(path_delay)
+    path_gain = np.exp(-path_delay / Tmp)
+    c_p = path_gain * np.exp(-1j * 2 * np.pi * fc * path_delay)
+    h_hat = np.zeros(
+        (
+            np.round(channel_time * fs_time).astype(int),
+            1,
+            np.ceil(fs_delay * Tmp * 1.5).astype(int),
+        ),
+        dtype=complex,
+    )
+    h_hat[:, 0, np.round((path_delay + 0.2 * Tmp) * fs_delay).astype(int)] = np.tile(c_p, (h_hat.shape[0], 1))
+    theta_hat = np.zeros((np.round(channel_time * fs_delay).astype(int), 1))
+
+    channel = {
+        "h_hat": {"real": np.real(h_hat), "imag": np.imag(h_hat)},
+        "theta_hat": theta_hat,
+        "params": {
+            "fs_delay": np.array([[fs_delay]]),
+            "fs_time": np.array([[fs_time]]),
+            "fc": np.array([[fc]]),
+        },
+    }
+
+    fs_time = 20
+    array_index = [0]
+    _ = unpack(fs_time, array_index, channel)
+    
+    # delay_axis = np.arange(unpacked.shape[0]) / fs_delay
+    # time_axis = np.arange(unpacked.shape[2]) / fs_time
+    # plt.pcolor(delay_axis * 1e3, time_axis, 20 * np.log10(np.abs(np.squeeze(unpacked[:, 0, :]))).T, vmin=-30, vmax=0)
+    # plt.xlabel("Delay [ms]")
+    # plt.ylabel("Time [s]")
+
+    # plt.show()
 
 
 if __name__ == "__main__":
