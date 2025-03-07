@@ -103,8 +103,8 @@ jobs:
       uses: sigstore/gh-action-sigstore-python@v3.0.0
       with:
         inputs:
-          ./dist/*.tar.gz
-          ./dist/*.whl
+          dist/uwa-replay-*/*.tar.gz
+          dist/uwa-replay-*/*.whl
     - name: Create GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
