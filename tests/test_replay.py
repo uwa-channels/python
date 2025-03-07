@@ -87,7 +87,6 @@ def test_replay_function(params):
         dtype=complex,
     )
     h_hat[:, 0, np.round((path_delay + 0.2 * Tmp) * fs_delay).astype(int)] = np.tile(c_p, (h_hat.shape[0], 1))
-    h_hat = h_hat[:, :, ::-1]
     theta_hat = np.zeros((np.round(channel_time * fs_delay).astype(int), 1))
 
     channel = {

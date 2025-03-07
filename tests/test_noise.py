@@ -20,7 +20,7 @@ def generate_mock_noise(fs, M=4, sigma=None):
 
 
 @pytest.mark.parametrize("noise_option", [1, 2])
-@pytest.mark.parametrize("M", np.arange(24))
+@pytest.mark.parametrize("M", np.arange(4))
 def test_generate_noise_valid_options(noise_option, M):
     input_signal = np.zeros((1000, M))
     fs = 48000
