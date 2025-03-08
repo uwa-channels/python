@@ -16,7 +16,7 @@ This code repository contains the Python function `replay` and noise generation 
 To install the requirements,
 
 ```bash
-pip install replay_python
+pip install uwa_replay
 ```
 
 To load the channel and noise MAT-files, and replay a signal of your choice through an underwater acoustic channel,
