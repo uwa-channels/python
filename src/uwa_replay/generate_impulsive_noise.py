@@ -4,14 +4,13 @@ from scipy.stats import levy_stable
 from fractions import Fraction
 
 
-def generate_impulsive_noise(input, fs, noise, array_index):
+def generate_impulsive_noise(input_shape, fs, noise, array_index):
     Fs = noise["Fs"][0, 0]
     alpha = noise["alpha"]
     beta = np.array(noise["beta"]).T
-    print(beta.shape)
 
     frac = Fraction(fs / Fs).limit_denominator()
-    signal_size = np.array(input.shape)
+    signal_size = np.array(input_shape)
     signal_size[0] = np.astype(np.ceil(signal_size[0] / fs * Fs), int)
 
     K = signal_size[0]
@@ -28,7 +27,7 @@ def generate_impulsive_noise(input, fs, noise, array_index):
     w = w[:, array_index]
     w = sg.resample_poly(w, frac.numerator, frac.denominator)
     w /= np.sqrt(np.sum(pwr(w)))
-    w = w[: input.shape[0], :]
+    w = w[: input_shape[0], :]
     return w
 
 
