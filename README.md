@@ -1,5 +1,5 @@
-[![CI](https://github.com/uwa-channels/replay_python/actions/workflows/ci.yaml/badge.svg)](https://github.com/uwa-channels/replay_python/actions/workflows/ci.yaml)
-[![codecov](https://codecov.io/gh/uwa-channels/replay_python/graph/badge.svg?token=0VK4040WNU)](https://codecov.io/gh/uwa-channels/replay_python)
+[![CI](https://github.com/uwa-channels/python/actions/workflows/ci.yaml/badge.svg)](https://github.com/uwa-channels/python/actions/workflows/ci.yaml)
+[![codecov](https://codecov.io/gh/uwa-channels/python/graph/badge.svg?token=0VK4040WNU)](https://codecov.io/gh/uwa-channels/python)
 
 # Underwater Acoustic Channel Toolbox - Python
 
@@ -7,7 +7,7 @@
 
 Python toolbox to apply underwater acoustic channels to a signal of your choice, or to unpack an underwater acoustic channel. To learn more about the channels, check out the [documentation](https://uwa-channels.github.io/). 
 
-Please report bugs and suggest enhancements by [creating a new issue](https://github.com/uwa-channels/replay_python/issues). We welcome your comments. See [CONTRIBUTING.MD](CONTRIBUTING.md) for more information.
+Please report bugs and suggest enhancements by [creating a new issue](https://github.com/uwa-channels/python/issues). We welcome your comments. See [CONTRIBUTING.MD](CONTRIBUTING.md) for more information.
 
 ## Using the replay toolbox
 
