@@ -51,3 +51,6 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     unpacked_channel /= np.max(np.abs(unpacked))
 
     return unpacked_channel
+
+
+# [EOF]
