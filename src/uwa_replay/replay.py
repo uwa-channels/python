@@ -63,7 +63,6 @@ def replay(input, fs, array_index, channel, start=None):
     # Resample in passband if needed
     if "theta_hat" not in channel.keys():
         frac_resample = Fraction(resampling_factor).limit_denominator()
-        print(frac_resample.numerator, frac_resample.denominator)
         output = sg.resample_poly(output, frac_resample.numerator, frac_resample.denominator)
 
     output /= np.sqrt(np.sum(pwr(output)))
