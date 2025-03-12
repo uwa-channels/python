@@ -9,9 +9,13 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     fs_delay = channel["params"]["fs_delay"][0, 0]
     fs_time = channel["params"]["fs_time"][0, 0]
     fc = channel["params"]["fc"][0, 0]
-    h_hat = np.array(channel["h_hat"]["real"] + 1j * channel["h_hat"]["imag"])
-    theta_hat = np.array(channel["theta_hat"])
+    h_hat = np.array(channel["h_hat"]["real"] + 1j * channel["h_hat"]["imag"])[:, array_index, :]
     T, M, K = h_hat.shape
+    if "theta_hat" in channel.keys():
+        theta_hat = np.array(channel["theta_hat"])[:, array_index]
+    else:
+        r = channel["resampling_factor"][0, 0] * np.ones((np.ceil(T*fs_delay/fs_time).astype(int), M))
+        theta_hat = 2 * np.pi * fc * np.cumsum(1-r, 0) / fs_delay
 
     ## Allocate some buffer
     h_hat = np.concatenate(
@@ -33,11 +37,9 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     unpacked_channel = np.zeros(
         (K, len(array_index), np.ceil(T * frac_1.numerator / frac_1.denominator).astype(int)), dtype=complex
     )
-    for m in range(len(array_index)):
-        h_hat_m = np.squeeze(h_hat[:, array_index[m], :])
-        theta_hat_resampled = sg.resample_poly(
-            theta_hat[:, array_index[m]], frac_2.numerator, frac_2.denominator, axis=0
-        )
+    for m in range(M):
+        h_hat_m = np.squeeze(h_hat[:, m, :])
+        theta_hat_resampled = sg.resample_poly(theta_hat[:, m], frac_2.numerator, frac_2.denominator, axis=0)
         drift = theta_hat_resampled / (2 * np.pi * fc)
         unpacked = (
             sg.resample_poly(h_hat_m, frac_1.numerator, frac_1.denominator, axis=0)
