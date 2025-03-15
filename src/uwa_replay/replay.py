@@ -39,13 +39,8 @@ def replay(input, fs, array_index, channel, start=None):
     signal_end = np.ceil(np.max(signal_time) * fs_time).astype(int)
     frac1 = Fraction(fs_delay / fs_time).limit_denominator()
     for m in range(M):
-        ir_real = sg.resample_poly(
-            h_hat_real[signal_start:signal_end, m, ::-1], frac1.numerator, frac1.denominator, axis=0
-        )
-        ir_imag = sg.resample_poly(
-            h_hat_imag[signal_start:signal_end, m, ::-1], frac1.numerator, frac1.denominator, axis=0
-        )
-        ir = ir_real + 1j * ir_imag
+        ir = h_hat_real[signal_start:signal_end, m, ::-1] + 1j * h_hat_imag[signal_start:signal_end, m, ::-1]
+        ir = sg.resample_poly(ir, frac1.numerator, frac1.denominator, axis=0)
 
         if "theta_hat" in channel.keys():
             for t in np.arange(T + L - 1):
