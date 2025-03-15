@@ -1,9 +1,7 @@
 import pytest
 import numpy as np
-import scipy.signal as sg
-import matplotlib.pyplot as plt
-from uwa_replay import replay, unpack
-from fractions import Fraction
+from uwa_replay import  unpack
+# import matplotlib.pyplot as plt
 
 
 @pytest.fixture(autouse=True)
@@ -79,9 +77,9 @@ def test_unpack_function(params):
     else:
         channel["resampling_factor"] = np.array([[params["resampling_factor"]]])
 
-    # fs_time = 40
-    # array_index = [0]
-    # unpacked = unpack(fs_time, array_index, channel)
+    fs_time = 40
+    array_index = [0]
+    unpacked = unpack(fs_time, array_index, channel)
 
     # delay_axis = np.arange(unpacked.shape[0]) / fs_delay
     # time_axis = np.arange(unpacked.shape[2]) / fs_time

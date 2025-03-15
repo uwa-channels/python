@@ -1,9 +1,9 @@
 import pytest
 import numpy as np
 import scipy.signal as sg
-import matplotlib.pyplot as plt
-from uwa_replay import replay, unpack
+from uwa_replay import replay
 from fractions import Fraction
+# import matplotlib.pyplot as plt
 
 
 @pytest.fixture(autouse=True)
