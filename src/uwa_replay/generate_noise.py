@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.signal as sg
 from fractions import Fraction
+from scipy.stats import levy_stable
 
 
 def generate_noise(input_shape, fs, noise=None, array_index=[0]):
@@ -21,7 +22,7 @@ def generate_noise(input_shape, fs, noise=None, array_index=[0]):
         w /= np.sqrt(pwr(w))
 
     # Generate noise according to statistics collected during experiment.
-    elif noise is not None:
+    elif noise is not None and "sigma" in noise.keys():
         frac = Fraction(fs / Fs).limit_denominator()
         signal_size = np.array(input_shape)
         signal_size[0] = np.ceil(signal_size[0] / fs * Fs).astype(int)
@@ -33,6 +34,27 @@ def generate_noise(input_shape, fs, noise=None, array_index=[0]):
             w[:, m] = sg.fftconvolve(n[:, array_index[m]], h[array_index[m], :], "same")
         w = sg.resample_poly(w, frac.numerator, frac.denominator)
         w -= np.mean(w, axis=0)
+        w /= np.sqrt(np.sum(pwr(w)))
+        w = w[: input_shape[0], :]
+
+    elif noise is not None and "alpha" in noise.keys():
+        alpha = noise["alpha"]
+        beta = np.array(noise["beta"]).T
+        frac = Fraction(fs / Fs).limit_denominator()
+        signal_size = np.array(input_shape)
+        signal_size[0] = np.astype(np.ceil(signal_size[0] / fs * Fs), int)
+        K = signal_size[0]
+        N = beta.shape[0]
+
+        z = levy_stable.rvs(alpha, 0, size=(K + beta.shape[2], N))
+        w = np.zeros((K, N))
+        for i in range(N):
+            for j in range(N):
+                for k in range(beta.shape[2]):
+                    w[:, i] = w[:, i] + beta[i, j, k] * z[k : k + K, j]
+
+        w = w[:, array_index]
+        w = sg.resample_poly(w, frac.numerator, frac.denominator)
         w /= np.sqrt(np.sum(pwr(w)))
         w = w[: input_shape[0], :]
 

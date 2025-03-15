@@ -64,3 +64,21 @@ def test_power_normalization_option2(M):
     metric = p / np.diag(noise["sigma"])
 
     assert np.all(np.abs(metric - metric[0]) < 3e-2), "Power normalization check failed"
+
+def generate_mock_impulsive_noise(fs, alpha=1.7):
+    return {
+        "Fs": np.array([[fs]]),
+        "alpha": alpha,
+        "beta": np.repeat(np.diag([1,2,3])[None, :, :], 65, axis=0)
+    }
+
+
+def test_generate_impulsive_noise_valid_options():
+    input_signal = np.zeros((1000, 3))
+    fs = 48000
+    array_index = np.arange(3)
+    noise = generate_mock_impulsive_noise(fs)
+    w = generate_noise(input_signal.shape, fs, noise, array_index)
+
+    assert w.shape == input_signal.shape, "Output shape mismatch"
+    assert np.all(np.isfinite(w)), "Output contains NaN or infinite values"
