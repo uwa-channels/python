@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     ## Add the noise
     output += 0.05 * generate_noise(output.shape, fs)
-    # output += 0.05 * generate_noise(output.shape, fs, noise, array_index)
+    # output += 0.05 * generate_noise(output.shape, fs, array_index, noise)
 
     ## Downconvert
     v = output * np.exp(-2j * np.pi * fc * np.arange(output.shape[0])[:, None] / fs)

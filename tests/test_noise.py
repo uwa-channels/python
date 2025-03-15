@@ -30,7 +30,7 @@ def test_generate_noise_valid_options(noise_option, M):
     else:
         array_index = np.arange(M)
         noise = generate_mock_noise(fs, M)
-        w = generate_noise(input_signal.shape, fs, noise, array_index)
+        w = generate_noise(input_signal.shape, fs, array_index, noise)
 
     assert w.shape == input_signal.shape, "Output shape mismatch"
     assert np.all(np.isfinite(w)), "Output contains NaN or infinite values"
@@ -55,7 +55,7 @@ def test_power_normalization_option2(M):
     noise = generate_mock_noise(fs, M, sigma=np.zeros((M, M)))
     np.fill_diagonal(noise["sigma"], np.random.rand(M))
 
-    w = generate_noise(input_signal.shape, fs, noise, array_index)
+    w = generate_noise(input_signal.shape, fs, array_index, noise)
     p = np.mean(np.abs(w) ** 2, axis=0)
 
     diag = np.copy(np.diag(noise["sigma"]))
@@ -65,12 +65,9 @@ def test_power_normalization_option2(M):
 
     assert np.all(np.abs(metric - metric[0]) < 3e-2), "Power normalization check failed"
 
+
 def generate_mock_impulsive_noise(fs, alpha=1.7):
-    return {
-        "Fs": np.array([[fs]]),
-        "alpha": alpha,
-        "beta": np.repeat(np.diag([1,2,3])[None, :, :], 65, axis=0)
-    }
+    return {"Fs": np.array([[fs]]), "alpha": alpha, "beta": np.repeat(np.diag([1, 2, 3])[None, :, :], 65, axis=0)}
 
 
 def test_generate_impulsive_noise_valid_options():
@@ -78,7 +75,7 @@ def test_generate_impulsive_noise_valid_options():
     fs = 48000
     array_index = np.arange(3)
     noise = generate_mock_impulsive_noise(fs)
-    w = generate_noise(input_signal.shape, fs, noise, array_index)
+    w = generate_noise(input_signal.shape, fs, array_index, noise)
 
     assert w.shape == input_signal.shape, "Output shape mismatch"
     assert np.all(np.isfinite(w)), "Output contains NaN or infinite values"

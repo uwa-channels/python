@@ -4,7 +4,7 @@ from fractions import Fraction
 from scipy.stats import levy_stable
 
 
-def generate_noise(input_shape, fs, noise=None, array_index=[0]):
+def generate_noise(input_shape, fs, array_index=[0], noise=None):
     if noise is not None:
         Fs = noise["Fs"][0, 0]
 
