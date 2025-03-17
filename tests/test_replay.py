@@ -3,7 +3,6 @@ import numpy as np
 import scipy.signal as sg
 from uwa_replay import replay
 from fractions import Fraction
-# import matplotlib.pyplot as plt
 
 
 @pytest.fixture(autouse=True)
@@ -146,6 +145,15 @@ def test_replay_function(params):
     estimated_gain = xcor[peaks]
     peaks -= np.min(peaks)
     estimated_delays = peaks / fs
+
+    # import matplotlib.pyplot as plt
+
+    # lags = np.arange(len(xcor)) - np.argmax(xcor)
+    # plt.stem(path_delay * 1e3, path_gain, markerfmt="x", basefmt=" ")
+    # plt.plot(lags / fs * 1e3, xcor)
+    # plt.xlim([np.min(estimated_delays) * 1e3 - 5, np.max(estimated_delays) * 1e3 + 10])
+    # plt.xlabel("Delay [ms]")
+    # plt.show()
 
     criteria = np.abs(np.sum(path_delay * path_gain) - np.sum(estimated_delays * estimated_gain))
     assert criteria < 3e-4 * n_path, f"Test criteria failed: {criteria:.3e}"
