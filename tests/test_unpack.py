@@ -26,6 +26,7 @@ def randsamples(population, num):
             "channel_time": 5,
             "n_path": 10,
             "theta_hat": True,
+            "resampling_factor": 1 / (1 + 1 / 1545),
         },
         {
             "fs_delay": 16e3,
@@ -62,7 +63,9 @@ def test_unpack_function(params):
         dtype=complex,
     )
     h_hat[:, 0, np.round((path_delay + 0.2 * Tmp) * fs_delay).astype(int)] = np.tile(c_p, (h_hat.shape[0], 1))
-    theta_hat = np.zeros((np.round(channel_time * fs_delay).astype(int), 1))
+    a = 1 - 1 / params["resampling_factor"]
+    t = np.arange(np.round(channel_time * fs_delay).astype(int))
+    theta_hat = -a * 2 * np.pi * fc * t[:, None] / fs_delay
 
     channel = {
         "h_hat": {"real": np.real(h_hat), "imag": np.imag(h_hat)},
@@ -81,10 +84,11 @@ def test_unpack_function(params):
     array_index = [0]
     unpacked = unpack(fs_time, array_index, channel)
 
-    # delay_axis = np.arange(unpacked.shape[0]) / fs_delay
-    # time_axis = np.arange(unpacked.shape[2]) / fs_time
-    # plt.pcolor(delay_axis * 1e3, time_axis, 20 * np.log10(np.abs(np.squeeze(unpacked[:, 0, :] + 1e-10))).T, vmin=-30, vmax=0)
-    # plt.xlabel("Delay [ms]")
-    # plt.ylabel("Time [s]")
+    import matplotlib.pyplot as plt
+    delay_axis = np.arange(unpacked.shape[0]) / fs_delay
+    time_axis = np.arange(unpacked.shape[2]) / fs_time
+    plt.pcolor(delay_axis * 1e3, time_axis, 20 * np.log10(np.abs(np.squeeze(unpacked[:, 0, :] + 1e-10))).T, vmin=-30, vmax=0)
+    plt.xlabel("Delay [ms]")
+    plt.ylabel("Time [s]")
 
-    # plt.show()
+    plt.show()

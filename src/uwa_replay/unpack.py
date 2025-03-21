@@ -14,8 +14,8 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     if "theta_hat" in channel.keys():
         theta_hat = np.array(channel["theta_hat"])[:, array_index]
     else:
-        r = channel["resampling_factor"][0, 0] * np.ones((np.ceil(T*fs_delay/fs_time).astype(int), M))
-        theta_hat = 2 * np.pi * fc * np.cumsum(1-r, 0) / fs_delay
+        theta_hat = (1 / channel["resampling_factor"][0, 0] - 1) * 2 * np.pi * fc * np.arange(np.ceil(T*fs_delay/fs_time))[:, None] / fs_delay
+        theta_hat = np.tile(theta_hat, [M, 1])
 
     ## Allocate some buffer
     h_hat = np.concatenate(
