@@ -80,7 +80,6 @@ jobs:
 
   github-release:
     name: Sign and upload to GitHub Release
-    if: startsWith(github.ref, 'refs/tags/')
     needs:
       - build
     runs-on: ubuntu-latest
