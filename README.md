@@ -12,7 +12,7 @@ Please report bugs and suggest enhancements by [creating a new issue](https://gi
 To install the toolbox,
 
 ```bash
-pip install uwa_replay
+pip install -i https://test.pypi.org/simple/ uwa-replay
 ```
 
 ## Using the replay and noise generation functions
