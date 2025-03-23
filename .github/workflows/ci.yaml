@@ -52,7 +52,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: uwa-replay-${{ matrix.python-version }}
+          name: uwa_replay-${{ matrix.python-version }}
           path: dist/
 
   publish-to-testpypi:
@@ -73,7 +73,7 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        pattern: uwa-replay-*
+        pattern: uwa_replay-*
         path: dist/
     - name: Publish distribution to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
@@ -105,8 +105,8 @@ jobs:
       uses: sigstore/gh-action-sigstore-python@v3.0.0
       with:
         inputs:
-          dist/uwa-replay-*/*.tar.gz
-          dist/uwa-replay-*/*.whl
+          dist/uwa_replay-*/*.tar.gz
+          dist/uwa_replay-*/*.whl
     - name: Create GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
@@ -120,5 +120,5 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
       run: >-
         gh release upload
-        "$GITHUB_REF_NAME" dist/uwa-replay-*/*
+        "$GITHUB_REF_NAME" dist/uwa_replay-*/*
         --repo "$GITHUB_REPOSITORY"

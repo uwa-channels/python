@@ -3,8 +3,8 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "uwa_replay"
-version = "0.1.1"
+name = "uwa-replay"
+version = "0.1.2"
 description = "A package for replaying signals through underwater acoustic channels."
 authors = [{name = "Zhengnan Li", email = "uwa-channels@ofdm.link"}]
 readme = "README.md"
