@@ -21,6 +21,7 @@ This code repository contains the Python function `replay` and noise generation 
 
 To load the channel and noise MAT-files, and replay a signal of your choice through an underwater acoustic channel,
 ```python
+from uwa_replay import replay, generate_noise
 channel = h5py.load("blue_1.mat")
 noise = h5py.load("blue_1_noise.mat")
 y = replay(input, fs, array_index, channel)
@@ -34,6 +35,7 @@ In `examples/example_replay.py`, the `blue_1` channel is used. The `blue_1.mat` 
 
 To unpack an underwater acoustic channel,
 ```python
+from uwa_replay import unpack
 channel = h5py.load('blue_1.mat');
 unpacked = unpack(fs_time, array_index, channel);
 ```
