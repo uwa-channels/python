@@ -10,7 +10,12 @@ authors = [{name = "Zhengnan Li", email = "uwa-channels@ofdm.link"}]
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-dependencies = {file = ["requirements.txt"]}
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "h5py"
+]
 
 [project.urls]
 Homepage = "https://github.com/uwa-channels/python"
