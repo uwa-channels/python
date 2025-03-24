@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uwa-replay"
-version = "0.2.2"
+version = "0.2.3"
 description = "A package for replaying signals through underwater acoustic channels."
 authors = [{name = "Zhengnan Li", email = "uwa-channels@ofdm.link"}]
 readme = "README.md"
