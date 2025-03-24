@@ -31,6 +31,7 @@ jobs:
           file: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
 
+
   build:
     name: Build Package
     runs-on: ubuntu-latest
@@ -50,18 +51,18 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: uwa_replay
+          name: python-package-distributions
           path: dist/
+
+
   publish-to-testpypi:
     name: Publish Python distribution to TestPyPI
     needs:
       - build
     runs-on: ubuntu-latest
-
     environment:
       name: testpypi
       url: https://test.pypi.org/p/uwa-replay
-
     permissions:
       id-token: write
 
@@ -69,19 +70,20 @@ jobs:
       - name: Download all the dists
         uses: actions/download-artifact@v4
         with:
-          name: uwa_replay
+          name: python-package-distributions
           path: dist/
       - name: Publish distribution to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
 
+
   github-release:
     name: Sign and upload to GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
     needs:
       - build
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
       id-token: write
@@ -94,7 +96,7 @@ jobs:
       - name: Download all the dists
         uses: actions/download-artifact@v4
         with:
-          name: uwa_replay
+          name: python-package-distributions
           path: dist/
       - name: Sign the dists with Sigstore
         uses: sigstore/gh-action-sigstore-python@v3.0.0
