@@ -5,6 +5,54 @@ from fractions import Fraction
 
 
 def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
+    """
+    Unpack an underwater acoustic channel.
+
+    Parameters:
+    -----------
+    fs : float
+        Target sampling frequency along time axis in Hz.
+
+    array_index : list of int
+        Indices of the array elements to process.
+
+    channel : dict
+        Dictionary containing channel characteristics. Expected keys in `channel`:
+
+        - "h_hat" : dict
+            - "real" : ndarray
+                Real part of the channel impulse response.
+            - "imag" : ndarray
+                Imaginary part of the channel impulse response.
+        - "params" : dict
+            - "fs_delay" : float
+                Sampling frequency of the delay domain.
+            - "fs_time" : float
+                Sampling frequency in the time domain.
+            - "fc" : float
+                Carrier frequency.
+        - "theta_hat" : ndarray, optional
+            Phase estimates for phase correction.
+        - "resampling_factor" : float, optional
+            Factor for additional resampling if no phase correction is applied.
+
+    buffer_left : float, optional
+        Left buffer fraction for impulse response padding. Default is 0.1.
+
+    buffer_right : float, optional
+        Right buffer fraction for impulse response padding. Default is 0.1.
+
+    Returns:
+    --------
+    ndarray
+        Unpacked and resampled channel with shape (delay_samples, num_elements, time_samples).
+
+    Examples:
+    ---------
+    For more detailed examples, refer to the corresponding scripts in the `examples` folder.
+
+    """
+
     ## Parameters
     fs_delay = channel["params"]["fs_delay"][0, 0]
     fs_time = channel["params"]["fs_time"][0, 0]
@@ -14,7 +62,14 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     if "theta_hat" in channel.keys():
         theta_hat = np.array(channel["theta_hat"])[:, array_index]
     else:
-        theta_hat = (1 / channel["resampling_factor"][0, 0] - 1) * 2 * np.pi * fc * np.arange(np.ceil(T*fs_delay/fs_time))[:, None] / fs_delay
+        theta_hat = (
+            (1 / channel["resampling_factor"][0, 0] - 1)
+            * 2
+            * np.pi
+            * fc
+            * np.arange(np.ceil(T * fs_delay / fs_time))[:, None]
+            / fs_delay
+        )
         theta_hat = np.tile(theta_hat, [M, 1])
 
     ## Allocate some buffer

@@ -5,6 +5,59 @@ from fractions import Fraction
 
 
 def replay(input, fs, array_index, channel, start=None):
+    """
+    Simulate the replay of a baseband signal through an underwater acoustic channel.
+
+    Parameters:
+    -----------
+    input : ndarray
+        Complex baseband input signal.
+
+    fs : float
+        Sampling frequency of the input signal in Hz.
+
+    array_index : list of int
+        Indices of the array elements to simulate.
+
+    channel : dict
+        Dictionary containing channel characteristics. Expected keys in `channel`:
+
+        - "h_hat" : dict
+            - "real" : ndarray
+                Real part of the estimated channel impulse response.
+            - "imag" : ndarray
+                Imaginary part of the estimated channel impulse response.
+        - "params" : dict
+            - "fs_delay" : float
+                Sampling frequency of the delay domain.
+            - "fs_time" : float
+                Sampling frequency in the time domain.
+            - "fc" : float
+                Carrier frequency.
+        - "theta_hat" : ndarray, optional
+            Phase estimates for phase correction.
+        - "resampling_factor" : float, optional
+            Factor for additional resampling if no phase correction is applied.
+
+    start : int, optional
+        Random starting point for signal propagation. If None, a random point is chosen.
+
+    Returns:
+    --------
+    ndarray
+        Simulated replay output with dimensions (samples, array_elements).
+
+    Raises:
+    -------
+    ValueError
+        If channel parameters are missing or inconsistent.
+
+    Examples:
+    ---------
+    For more detailed examples, refer to the corresponding scripts in the `examples` folder.
+
+    """
+
     # Unpacking variables
     h_hat_real = np.array(channel["h_hat"]["real"])[:, array_index, :]
     h_hat_imag = np.array(channel["h_hat"]["imag"])[:, array_index, :]
