@@ -101,7 +101,7 @@ jobs:
   publish-to-testpypi:
     name: Publish Python distribution to TestPyPI
     needs:
-      - github-release
+      - build
     runs-on: ubuntu-latest
     environment:
       name: testpypi
