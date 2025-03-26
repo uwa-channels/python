@@ -33,7 +33,7 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
                 Carrier frequency.
         - "theta_hat" : ndarray, optional
             Phase estimates for phase correction.
-        - "resampling_factor" : float, optional
+        - "f_resamp" : float, optional
             Factor for additional resampling if no phase correction is applied.
 
     buffer_left : float, optional
@@ -63,7 +63,7 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
         theta_hat = np.array(channel["theta_hat"])[:, array_index]
     else:
         theta_hat = (
-            (1 / channel["resampling_factor"][0, 0] - 1)
+            (1 / channel["f_resamp"][0, 0] - 1)
             * 2
             * np.pi
             * fc

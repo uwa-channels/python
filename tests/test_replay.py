@@ -54,7 +54,7 @@ def randsamples(population, num):
             "R": 4e3,
             "channel_time": 10,
             "n_path": 10,
-            "resampling_factor": 1 / (1 + 1.5 / 1545),
+            "f_resamp": 1 / (1 + 1.5 / 1545),
             "theta_hat": True,
         },
         {
@@ -65,7 +65,7 @@ def randsamples(population, num):
             "R": 4e3,
             "channel_time": 10,
             "n_path": 10,
-            "resampling_factor": 1 / (1 - 0.5 / 1545),
+            "f_resamp": 1 / (1 - 0.5 / 1545),
             "theta_hat": True,
         },
         {
@@ -76,7 +76,7 @@ def randsamples(population, num):
             "R": 4e3,
             "channel_time": 10,
             "n_path": 10,
-            "resampling_factor": 1 / (1 - 2.5 / 1545),
+            "f_resamp": 1 / (1 - 2.5 / 1545),
             "theta_hat": False,
         },
     ],
@@ -103,7 +103,7 @@ def test_replay_function(params):
         dtype=complex,
     )
     h_hat[:, 0, np.round((path_delay + 0.2 * Tmp) * fs_delay).astype(int)] = np.tile(c_p, (h_hat.shape[0], 1))
-    a = 1 - 1 / params["resampling_factor"]
+    a = 1 - 1 / params["f_resamp"]
     t = np.arange(np.round(channel_time * fs_delay).astype(int))
     theta_hat = -a * 2 * np.pi * fc * t[:, None] / fs_delay
 
@@ -118,7 +118,7 @@ def test_replay_function(params):
     if params["theta_hat"]:
         channel["theta_hat"] = theta_hat
     else:
-        channel["resampling_factor"] = np.array([[params["resampling_factor"]]])
+        channel["f_resamp"] = np.array([[params["f_resamp"]]])
 
     fs = 48e3
     data_symbols = np.random.randint(2, size=(4095,)) * 2 - 1
@@ -129,7 +129,7 @@ def test_replay_function(params):
     r = replay(input_signal, fs, [0], channel, 1)
     v = r[:, 0] * np.exp(-2j * np.pi * fc * np.arange(len(r)) / fs)
 
-    frac = Fraction(params["resampling_factor"]).limit_denominator()
+    frac = Fraction(params["f_resamp"]).limit_denominator()
     baseband_resampled = baseband * np.exp(-2j * a * np.pi * fc * np.arange(len(baseband)) / fs)
     baseband_resampled = sg.resample_poly(baseband_resampled, frac.numerator, frac.denominator)
 

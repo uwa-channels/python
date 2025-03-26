@@ -36,7 +36,7 @@ def replay(input, fs, array_index, channel, start=None):
                 Carrier frequency.
         - "theta_hat" : ndarray, optional
             Phase estimates for phase correction.
-        - "resampling_factor" : float, optional
+        - "f_resamp" : float, optional
             Factor for additional resampling if no phase correction is applied.
 
     start : int, optional
@@ -69,7 +69,7 @@ def replay(input, fs, array_index, channel, start=None):
     if "theta_hat" in channel.keys():
         theta_hat = np.array(channel["theta_hat"])[:, array_index]
     else:
-        resampling_factor = channel["resampling_factor"][0, 0]
+        f_resamp = channel["f_resamp"][0, 0]
 
     # Convert baseband and resample the signal to fs_delay
     frac = Fraction(fs_delay / fs).limit_denominator()
@@ -110,7 +110,7 @@ def replay(input, fs, array_index, channel, start=None):
 
     # Resample in passband if needed
     if "theta_hat" not in channel.keys():
-        frac_resample = Fraction(resampling_factor).limit_denominator()
+        frac_resample = Fraction(f_resamp).limit_denominator()
         output = sg.resample_poly(output, frac_resample.numerator, frac_resample.denominator)
 
     output /= np.sqrt(np.sum(pwr(output)))

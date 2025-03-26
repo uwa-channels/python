@@ -25,7 +25,7 @@ def randsamples(population, num):
             "channel_time": 5,
             "n_path": 10,
             "theta_hat": True,
-            "resampling_factor": 1 / (1 + 1 / 1545),
+            "f_resamp": 1 / (1 + 1 / 1545),
         },
         {
             "fs_delay": 16e3,
@@ -36,7 +36,7 @@ def randsamples(population, num):
             "channel_time": 10,
             "n_path": 10,
             "theta_hat": False,
-            "resampling_factor": 1 / (1 - 1 / 1545),
+            "f_resamp": 1 / (1 - 1 / 1545),
         },
     ],
 )
@@ -62,7 +62,7 @@ def test_unpack_function(params):
         dtype=complex,
     )
     h_hat[:, 0, np.round((path_delay + 0.2 * Tmp) * fs_delay).astype(int)] = np.tile(c_p, (h_hat.shape[0], 1))
-    a = 1 - 1 / params["resampling_factor"]
+    a = 1 - 1 / params["f_resamp"]
     t = np.arange(np.round(channel_time * fs_delay).astype(int))
     theta_hat = -a * 2 * np.pi * fc * t[:, None] / fs_delay
 
@@ -77,7 +77,7 @@ def test_unpack_function(params):
     if params["theta_hat"]:
         channel["theta_hat"] = theta_hat
     else:
-        channel["resampling_factor"] = np.array([[params["resampling_factor"]]])
+        channel["f_resamp"] = np.array([[params["f_resamp"]]])
 
     fs_time = 40
     array_index = [0]
