@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from uwa_replay import generate_noise
+from uwa_replay import noisegen
 
 
 @pytest.fixture(autouse=True)
@@ -21,16 +21,16 @@ def generate_mock_noise(fs, M=4, sigma=None):
 
 @pytest.mark.parametrize("noise_option", [1, 2])
 @pytest.mark.parametrize("M", np.arange(4))
-def test_generate_noise_valid_options(noise_option, M):
+def test_noisegen_valid_options(noise_option, M):
     input_signal = np.zeros((1000, M))
     fs = 48000
 
     if noise_option == 1:
-        w = generate_noise(input_signal.shape, fs)
+        w = noisegen(input_signal.shape, fs)
     else:
         array_index = np.arange(M)
         noise = generate_mock_noise(fs, M)
-        w = generate_noise(input_signal.shape, fs, array_index, noise)
+        w = noisegen(input_signal.shape, fs, array_index, noise)
 
     assert w.shape == input_signal.shape, "Output shape mismatch"
     assert np.all(np.isfinite(w)), "Output contains NaN or infinite values"
@@ -41,7 +41,7 @@ def test_power_normalization_option1(M):
     input_signal = np.zeros((int(1e6), M))
     fs = 90000
 
-    w = generate_noise(input_signal.shape, fs)
+    w = noisegen(input_signal.shape, fs)
     p = np.mean(np.abs(w) ** 2, axis=0)
 
     assert np.all(np.abs(p - p[0]) < 1e-3), "Power normalization failed"
@@ -55,7 +55,7 @@ def test_power_normalization_option2(M):
     noise = generate_mock_noise(fs, M, sigma=np.zeros((M, M)))
     np.fill_diagonal(noise["sigma"], np.random.rand(M))
 
-    w = generate_noise(input_signal.shape, fs, array_index, noise)
+    w = noisegen(input_signal.shape, fs, array_index, noise)
     p = np.mean(np.abs(w) ** 2, axis=0)
 
     diag = np.copy(np.diag(noise["sigma"]))
@@ -75,7 +75,7 @@ def test_generate_impulsive_noise_valid_options():
     fs = 48000
     array_index = np.arange(3)
     noise = generate_mock_impulsive_noise(fs)
-    w = generate_noise(input_signal.shape, fs, array_index, noise)
+    w = noisegen(input_signal.shape, fs, array_index, noise)
 
     assert w.shape == input_signal.shape, "Output shape mismatch"
     assert np.all(np.isfinite(w)), "Output contains NaN or infinite values"

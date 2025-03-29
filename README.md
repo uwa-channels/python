@@ -17,15 +17,15 @@ pip install -i https://test.pypi.org/simple/ uwa-replay
 
 ## Using the replay and noise generation functions
 
-This code repository contains the Python function `replay` and noise generation function `generate_noise`. To replay your desired signal, download MAT-files from [here](https://www.dropbox.com/scl/fo/3gyt4cgw47jfx716v0epd/AIqYaL5S2RxGylREu3sn-vY?rlkey=w2mvoklkm42zrrf6k6lwlzcxu&st=u3u6b5r9&dl=0), and store them in a folder where Python can find them.
+This code repository contains the Python function `replay` and noise generation function `noisegen`. To replay your desired signal, download MAT-files from [here](https://www.dropbox.com/scl/fo/3gyt4cgw47jfx716v0epd/AIqYaL5S2RxGylREu3sn-vY?rlkey=w2mvoklkm42zrrf6k6lwlzcxu&st=u3u6b5r9&dl=0), and store them in a folder where Python can find them.
 
 To load the channel and noise MAT-files, and replay a signal of your choice through an underwater acoustic channel,
 ```python
-from uwa_replay import replay, generate_noise
+from uwa_replay import replay, noisegen
 channel = h5py.load("blue_1.mat")
 noise = h5py.load("blue_1_noise.mat")
 y = replay(input, fs, array_index, channel)
-w = generate_noise(y.shape, fs)
+w = noisegen(y.shape, fs)
 r = y + 0.05 * w
 ```
 

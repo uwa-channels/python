@@ -2,7 +2,7 @@ import numpy as np
 import scipy.signal as sg
 import h5py
 import matplotlib.pyplot as plt
-from uwa_replay import replay, generate_noise
+from uwa_replay import replay, noisegen
 
 
 if __name__ == "__main__":
@@ -28,8 +28,8 @@ if __name__ == "__main__":
     # output = replay(input, fs, array_index, channel, start=1000)
 
     ## Add the noise
-    output += 0.05 * generate_noise(output.shape, fs)
-    # output += 0.05 * generate_noise(output.shape, fs, array_index, noise)
+    output += 0.05 * noisegen(output.shape, fs)
+    # output += 0.05 * noisegen(output.shape, fs, array_index, noise)
 
     ## Downconvert
     v = output * np.exp(-2j * np.pi * fc * np.arange(output.shape[0])[:, None] / fs)
