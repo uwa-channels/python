@@ -24,7 +24,7 @@ def randsamples(population, num):
             "R": 4e3,
             "channel_time": 5,
             "n_path": 10,
-            "theta_hat": True,
+            "theta_hat_only": True,
             "f_resamp": 1 / (1 + 1 / 1545),
         },
         {
@@ -35,7 +35,7 @@ def randsamples(population, num):
             "R": 4e3,
             "channel_time": 10,
             "n_path": 10,
-            "theta_hat": False,
+            "theta_hat_only": False,
             "f_resamp": 1 / (1 - 1 / 1545),
         },
     ],
@@ -68,15 +68,17 @@ def test_unpack_function(params):
 
     channel = {
         "h_hat": {"real": np.real(h_hat), "imag": np.imag(h_hat)},
+        "theta_hat": theta_hat,
         "params": {
             "fs_delay": np.array([[fs_delay]]),
             "fs_time": np.array([[fs_time]]),
             "fc": np.array([[fc]]),
         },
     }
-    if params["theta_hat"]:
-        channel["theta_hat"] = theta_hat
-    else:
+    # If there is additional parameter to resample
+    if not params["theta_hat_only"]:
+        # We set the residual theta_hat to zero
+        channel["theta_hat"] = np.zeros(channel["theta_hat"].shape)
         channel["f_resamp"] = np.array([[params["f_resamp"]]])
 
     fs_time = 40

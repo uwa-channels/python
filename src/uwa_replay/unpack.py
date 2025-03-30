@@ -31,10 +31,10 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
                 Sampling frequency in the time domain.
             - "fc" : float
                 Carrier frequency.
-        - "theta_hat" : ndarray, optional
+        - "theta_hat" : ndarray
             Phase estimates for phase correction.
         - "f_resamp" : float, optional
-            Factor for additional resampling if no phase correction is applied.
+            Factor for additional passband resampling.
 
     buffer_left : float, optional
         Left buffer fraction for impulse response padding. Default is 0.1.
@@ -59,10 +59,9 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     fc = channel["params"]["fc"][0, 0]
     h_hat = np.array(channel["h_hat"]["real"] + 1j * channel["h_hat"]["imag"])[:, array_index, :]
     T, M, K = h_hat.shape
-    if "theta_hat" in channel.keys():
-        theta_hat = np.array(channel["theta_hat"])[:, array_index]
-    else:
-        theta_hat = (
+    theta_hat = np.array(channel["theta_hat"])[:, array_index]
+    if "f_resamp" in channel.keys():
+        theta_hat += (
             (1 / channel["f_resamp"][0, 0] - 1)
             * 2
             * np.pi
@@ -70,7 +69,6 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
             * np.arange(np.ceil(T * fs_delay / fs_time))[:, None]
             / fs_delay
         )
-        theta_hat = np.tile(theta_hat, [M, 1])
 
     ## Allocate some buffer
     h_hat = np.concatenate(
