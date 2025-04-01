@@ -47,37 +47,69 @@ def randsamples(population, num):
     "params",
     [
         {
+            "channel_time": 5,
+            "coeff": 2,
+            "fc": 10e3,
             "fs_delay": 8e3,
             "fs_time": 20,
-            "fc": 13e3,
-            "Tmp": 15e-3,
+            "has_f_resamp": False,
+            "has_theta_hat": True,
+            "n_path": 8,
             "R": 4e3,
-            "channel_time": 10,
-            "n_path": 10,
-            "f_resamp": 1 / (1 + 1.5 / 1545),
-            "theta_hat_only": True,
+            "Tmp": 10e-3,
+            "velocity": 1.5,
         },
         {
+            "channel_time": 5,
+            "coeff": 1,
+            "fc": 15e3,
             "fs_delay": 16e3,
-            "fs_time": 10,
-            "fc": 10e3,
-            "Tmp": 25e-3,
-            "R": 4e3,
-            "channel_time": 10,
+            "fs_time": 20,
+            "has_f_resamp": False,
+            "has_theta_hat": True,
             "n_path": 10,
-            "f_resamp": 1 / (1 - 0.5 / 1545),
-            "theta_hat_only": True,
+            "R": 8e3,
+            "Tmp": 20e-3,
+            "velocity": -0.5,
         },
         {
+            "channel_time": 5,
+            "coeff": 1.5,
+            "fc": 15e3,
+            "fs_delay": 8e3,
+            "fs_time": 10,
+            "has_f_resamp": False,
+            "has_theta_hat": False,
+            "n_path": 8,
+            "R": 4e3,
+            "Tmp": 20e-3,
+            "velocity": 0,
+        },
+        {
+            "channel_time": 5,
+            "coeff": 1.5,
+            "fc": 15e3,
             "fs_delay": 16e3,
             "fs_time": 10,
-            "fc": 10e3,
-            "Tmp": 25e-3,
-            "R": 4e3,
-            "channel_time": 10,
-            "n_path": 10,
-            "f_resamp": 1 / (1 - 2.5 / 1545),
-            "theta_hat_only": False,
+            "has_f_resamp": True,
+            "has_theta_hat": False,
+            "n_path": 8,
+            "R": 8e3,
+            "Tmp": 20e-3,
+            "velocity": -1,
+        },
+        {
+            "channel_time": 5,
+            "coeff": 1.5,
+            "fc": 15e3,
+            "fs_delay": 10e3,
+            "fs_time": 10,
+            "has_f_resamp": True,
+            "has_theta_hat": True,
+            "n_path": 8,
+            "R": 6e3,
+            "Tmp": 20e-3,
+            "velocity": -2,
         },
     ],
 )
@@ -92,7 +124,7 @@ def test_replay_function(params):
 
     path_delay = np.sort(randsamples(np.arange(Tmp * 1e3), n_path)) / 1e3
     path_delay -= np.min(path_delay)
-    path_gain = np.exp(-path_delay / Tmp)
+    path_gain = np.exp(-path_delay * params["coeff"] / Tmp)
     c_p = path_gain * np.exp(-1j * 2 * np.pi * fc * path_delay)
     h_hat = np.zeros(
         (
@@ -103,24 +135,27 @@ def test_replay_function(params):
         dtype=complex,
     )
     h_hat[:, 0, np.round((path_delay + 0.2 * Tmp) * fs_delay).astype(int)] = np.tile(c_p, (h_hat.shape[0], 1))
-    a = 1 - 1 / params["f_resamp"]
+    f_resamp = 1 / (1 + params["velocity"] / 1545)
+    a = 1 - 1 / f_resamp
     t = np.arange(np.round(channel_time * fs_delay).astype(int))
     theta_hat = -a * 2 * np.pi * fc * t[:, None] / fs_delay
 
     channel = {
         "h_hat": {"real": np.real(h_hat), "imag": np.imag(h_hat)},
-        "theta_hat": theta_hat,
         "params": {
             "fs_delay": np.array([[fs_delay]]),
             "fs_time": np.array([[fs_time]]),
             "fc": np.array([[fc]]),
         },
     }
-    # If there is additional parameter to resample
-    if not params["theta_hat_only"]:
-        # We set the residual theta_hat to zero
-        channel["theta_hat"] = np.zeros(channel["theta_hat"].shape)
-        channel["f_resamp"] = np.array([[params["f_resamp"]]])
+
+    if params["has_theta_hat"]:
+        channel["theta_hat"] = theta_hat
+    if params["has_f_resamp"]:
+        channel["f_resamp"] = np.array([[f_resamp]])
+    if params["has_theta_hat"] and params["has_f_resamp"]:
+        channel["theta_hat"] = np.zeros(theta_hat.shape)
+        channel["f_resamp"] = np.array([[f_resamp]])
 
     fs = 48e3
     data_symbols = np.random.randint(2, size=(4095,)) * 2 - 1
@@ -131,7 +166,7 @@ def test_replay_function(params):
     r = replay(input_signal, fs, [0], channel, 1)
     v = r[:, 0] * np.exp(-2j * np.pi * fc * np.arange(len(r)) / fs)
 
-    frac = Fraction(params["f_resamp"]).limit_denominator()
+    frac = Fraction(f_resamp).limit_denominator()
     baseband_resampled = baseband * np.exp(-2j * a * np.pi * fc * np.arange(len(baseband)) / fs)
     baseband_resampled = sg.resample_poly(baseband_resampled, frac.numerator, frac.denominator)
 

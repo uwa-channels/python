@@ -66,7 +66,8 @@ def replay(input, fs, array_index, channel, start=None):
     fc = channel["params"]["fc"][0, 0]
     M = len(array_index)
     L = h_hat_real.shape[2]
-    theta_hat = np.array(channel["theta_hat"])[:, array_index]
+    if "theta_hat" in channel.keys():
+        theta_hat = np.array(channel["theta_hat"])[:, array_index]
 
     # Convert baseband and resample the signal to fs_delay
     frac = Fraction(fs_delay / fs).limit_denominator()
@@ -91,10 +92,14 @@ def replay(input, fs, array_index, channel, start=None):
     for m in range(M):
         ir = h_hat_real[signal_start:signal_end, m, ::-1] + 1j * h_hat_imag[signal_start:signal_end, m, ::-1]
         ir = sg.resample_poly(ir, frac1.numerator, frac1.denominator, axis=0)
-        for t in np.arange(T + L - 1):
-            output[t, m] = (ir[t, :] @ baseband[t : t + L]) * np.exp(1j * theta_hat[t, m])
-        drift = theta_hat[np.arange(start, start + T + L), m] / (2 * np.pi * fc)
-        output[:, m] = CubicSpline(signal_time, output[:, m])(signal_time + drift)
+        if "theta_hat" in channel.keys():
+            for t in np.arange(T + L - 1):
+                output[t, m] = (ir[t, :] @ baseband[t : t + L]) * np.exp(1j * theta_hat[t, m])
+            drift = theta_hat[np.arange(start, start + T + L), m] / (2 * np.pi * fc)
+            output[:, m] = CubicSpline(signal_time, output[:, m])(signal_time + drift)
+        else:
+            for t in np.arange(T + L - 1):
+                output[t, m] = ir[t, :] @ baseband[t : t + L]
 
     # Resample to match the original sampling rate and upshift to fc
     output = sg.resample_poly(output, frac.denominator, frac.numerator)
