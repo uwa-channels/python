@@ -59,8 +59,11 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     fc = channel["params"]["fc"][0, 0]
     h_hat = np.array(channel["h_hat"]["real"] + 1j * channel["h_hat"]["imag"])[:, array_index, :]
     T, M, K = h_hat.shape
-    theta_hat = np.array(channel["theta_hat"])[:, array_index]
-    if "f_resamp" in channel.keys():
+
+    theta_hat = np.zeros((np.ceil(T * fs_delay / fs_time).astype(int), len(array_index)))
+    if "theta_hat" in channel:
+        theta_hat += np.array(channel["theta_hat"])[:, array_index]
+    if "f_resamp" in channel:
         theta_hat += (
             (1 / channel["f_resamp"][0, 0] - 1)
             * 2
@@ -92,16 +95,19 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     )
     for m in range(M):
         h_hat_m = np.squeeze(h_hat[:, m, :])
-        theta_hat_resampled = sg.resample_poly(theta_hat[:, m], frac_2.numerator, frac_2.denominator, axis=0)
-        drift = theta_hat_resampled / (2 * np.pi * fc)
-        unpacked = (
-            sg.resample_poly(h_hat_m, frac_1.numerator, frac_1.denominator, axis=0)
-            * np.exp(1j * theta_hat_resampled)[:, None]
-        )
-        for t in range(unpacked.shape[0]):
-            unpacked_re = CubicSpline(delays, np.real(unpacked[t, :]))(delays + drift[t])
-            unpacked_im = CubicSpline(delays, np.imag(unpacked[t, :]))(delays + drift[t])
-            unpacked[t, :] = unpacked_re + 1j * unpacked_im
+        if "theta_hat" in channel or "f_resamp" in channel:
+            theta_hat_resampled = sg.resample_poly(theta_hat[:, m], frac_2.numerator, frac_2.denominator, axis=0)
+            drift = theta_hat_resampled / (2 * np.pi * fc)
+            unpacked = (
+                sg.resample_poly(h_hat_m, frac_1.numerator, frac_1.denominator, axis=0)
+                * np.exp(1j * theta_hat_resampled)[:, None]
+            )
+            for t in range(unpacked.shape[0]):
+                unpacked_re = CubicSpline(delays, np.real(unpacked[t, :]))(delays + drift[t])
+                unpacked_im = CubicSpline(delays, np.imag(unpacked[t, :]))(delays + drift[t])
+                unpacked[t, :] = unpacked_re + 1j * unpacked_im
+        else:
+            unpacked = sg.resample_poly(h_hat_m, frac_1.numerator, frac_1.denominator, axis=0)
         unpacked_channel[:, m, :] = unpacked.T
     unpacked_channel /= np.max(np.abs(unpacked))
 

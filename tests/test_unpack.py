@@ -24,7 +24,8 @@ def randsamples(population, num):
             "R": 4e3,
             "channel_time": 5,
             "n_path": 10,
-            "theta_hat_only": True,
+            "has_theta_hat": False,
+            "has_f_resamp": False,
             "f_resamp": 1 / (1 + 1 / 1545),
         },
         {
@@ -35,7 +36,44 @@ def randsamples(population, num):
             "R": 4e3,
             "channel_time": 10,
             "n_path": 10,
-            "theta_hat_only": False,
+            "has_theta_hat": True,
+            "has_f_resamp": False,
+            "f_resamp": 1 / (1 + 1.5 / 1545),
+        },
+        {
+            "fs_delay": 16e3,
+            "fs_time": 10,
+            "fc": 10e3,
+            "Tmp": 25e-3,
+            "R": 4e3,
+            "channel_time": 10,
+            "n_path": 10,
+            "has_theta_hat": True,
+            "has_f_resamp": False,
+            "f_resamp": 1 / (1 - 1 / 1545),
+        },
+        {
+            "fs_delay": 16e3,
+            "fs_time": 10,
+            "fc": 10e3,
+            "Tmp": 25e-3,
+            "R": 4e3,
+            "channel_time": 10,
+            "n_path": 10,
+            "has_theta_hat": False,
+            "has_f_resamp": True,
+            "f_resamp": 1 / (1 - 1 / 1545),
+        },
+        {
+            "fs_delay": 16e3,
+            "fs_time": 10,
+            "fc": 10e3,
+            "Tmp": 25e-3,
+            "R": 4e3,
+            "channel_time": 10,
+            "n_path": 10,
+            "has_theta_hat": True,
+            "has_f_resamp": True,
             "f_resamp": 1 / (1 - 1 / 1545),
         },
     ],
@@ -68,7 +106,6 @@ def test_unpack_function(params):
 
     channel = {
         "h_hat": {"real": np.real(h_hat), "imag": np.imag(h_hat)},
-        "theta_hat": theta_hat,
         "params": {
             "fs_delay": np.array([[fs_delay]]),
             "fs_time": np.array([[fs_time]]),
@@ -76,7 +113,12 @@ def test_unpack_function(params):
         },
     }
     # If there is additional parameter to resample
-    if not params["theta_hat_only"]:
+
+    if params["has_theta_hat"]:
+        channel["theta_hat"] = theta_hat
+    if params["has_f_resamp"]:
+        channel["f_resamp"] = np.array([[params["f_resamp"]]])
+    if params["has_theta_hat"] and params["has_f_resamp"]:
         # We set the residual theta_hat to zero
         channel["theta_hat"] = np.zeros(channel["theta_hat"].shape)
         channel["f_resamp"] = np.array([[params["f_resamp"]]])
@@ -85,10 +127,10 @@ def test_unpack_function(params):
     array_index = [0]
     unpacked = unpack(fs_time, array_index, channel)
 
-    # import matplotlib.pyplot as plt
-    # delay_axis = np.arange(unpacked.shape[0]) / fs_delay
-    # time_axis = np.arange(unpacked.shape[2]) / fs_time
-    # plt.pcolor(delay_axis * 1e3, time_axis, 20 * np.log10(np.abs(np.squeeze(unpacked[:, 0, :] + 1e-10))).T, vmin=-30, vmax=0)
-    # plt.xlabel("Delay [ms]")
-    # plt.ylabel("Time [s]")
-    # plt.show()
+    import matplotlib.pyplot as plt
+    delay_axis = np.arange(unpacked.shape[0]) / fs_delay
+    time_axis = np.arange(unpacked.shape[2]) / fs_time
+    plt.pcolor(delay_axis * 1e3, time_axis, 20 * np.log10(np.abs(np.squeeze(unpacked[:, 0, :] + 1e-10))).T, vmin=-30, vmax=0)
+    plt.xlabel("Delay [ms]")
+    plt.ylabel("Time [s]")
+    plt.show()
