@@ -45,9 +45,9 @@ def randsamples(population, num):
 
 def test_replay_performance(benchmark):
     fs = 96e3
-    array_index = np.array(np.arange(12))
-    channel = generate_mock_channel(M=12)
-    input_signal = np.random.randn(1024)
+    array_index = np.array(np.arange(32))
+    channel = generate_mock_channel(M=32, T=800)
+    input_signal = np.random.randn(16384)
     result = benchmark(lambda: replay(input_signal, fs, array_index, channel))
 
 

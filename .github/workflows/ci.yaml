@@ -35,10 +35,10 @@ jobs:
         if: contains(matrix.python-version, '3.13')
         run: |
           mkdir -p benchmarks
-          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
-            PYTHONPATH=src pytest tests/ --benchmark-save=main --benchmark-save-data --benchmark-storage=./benchmarks
+          if [[ "${GITHUB_REF}" == "refs/tags/perf-baseline" ]]; then
+            PYTHONPATH=src pytest tests/ --benchmark-save=baseline --benchmark-save-data --benchmark-storage=./benchmarks
           else
-            PYTHONPATH=src pytest tests/ --benchmark-compare=main --benchmark-compare-fail=10% --benchmark-storage=./benchmarks || true
+            PYTHONPATH=src pytest tests/ --benchmark-compare=baseline --benchmark-compare-fail=min:10% --benchmark-storage=./benchmarks || true
           fi
       - name: Upload benchmark data (only on main)
         if: github.ref == 'refs/heads/main'
