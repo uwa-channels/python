@@ -43,6 +43,14 @@ def randsamples(population, num):
     return population[rand_index[:num]]
 
 
+def test_replay_performance(benchmark):
+    fs = 96e3
+    array_index = np.array(np.arange(12))
+    channel = generate_mock_channel(M=12)
+    input_signal = np.random.randn(1024)
+    result = benchmark(lambda: replay(input_signal, fs, array_index, channel))
+
+
 @pytest.mark.parametrize(
     "params",
     [
