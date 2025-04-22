@@ -16,6 +16,7 @@ if __name__ == "__main__":
     R = 4e3
     n_repeat = 10
     array_index = np.array([0, 2, 4])
+    textbook_noise = False
 
     ## Generate single carrier signals
     data_symbols = np.random.choice([-1.0, +1.0], size=(1023,))
@@ -28,9 +29,11 @@ if __name__ == "__main__":
     # output = replay(input, fs, array_index, channel, start=1000)
 
     ## Add the noise
-    output += 0.05 * noisegen(output.shape, fs)
-    # output += 0.05 * noisegen(output.shape, fs, array_index, noise)
-
+    if textbook_noise:
+        output +=  0.05 * noisegen(output.shape, fs)
+    else
+        output += 0.05 * noisegen(output.shape, fs, array_index, noise)
+    
     ## Downconvert
     v = output * np.exp(-2j * np.pi * fc * np.arange(output.shape[0])[:, None] / fs)
 
