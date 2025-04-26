@@ -17,9 +17,20 @@ dependencies = [
     "h5py"
 ]
 
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
 [project.urls]
 Homepage = "https://github.com/uwa-channels/python"
 Documentation = "https://uwa-channels.github.io/"
 Repository = "https://github.com/uwa-channels/python"
 Issues = "https://github.com/uwa-channels/python/issues"
-
