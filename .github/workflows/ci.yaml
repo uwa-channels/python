@@ -1,6 +1,6 @@
 name: CI
 
-on: 
+on:
   workflow_dispatch:
   push:
   pull_request:
@@ -12,6 +12,10 @@ jobs:
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: write
+
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      tag_created: ${{ steps.set_tag.outputs.tag_created }}
 
     steps:
       - uses: actions/checkout@v4
@@ -35,16 +39,23 @@ jobs:
             echo "tag_exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create and push tag
-        if: steps.check_tag.outputs.tag_exists == 'false'
+      - name: Create and push tag (if missing)
+        id: set_tag
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag "v${{ steps.get_version.outputs.version }}"
-          git push origin "v${{ steps.get_version.outputs.version }}"
+          if [ "${{ steps.check_tag.outputs.tag_exists }}" = "false" ]; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git tag "v${{ steps.get_version.outputs.version }}"
+            git push origin "v${{ steps.get_version.outputs.version }}"
+            echo "tag_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag_created=false" >> $GITHUB_OUTPUT
+          fi
+
 
   test:
     runs-on: ubuntu-latest
+    needs: auto-tag
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
@@ -110,14 +121,15 @@ jobs:
 
   github-release:
     name: Sign and upload to GitHub Release
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    if: needs.auto-tag.outputs.tag_created == 'true'
+    needs: [auto-tag, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
 
     steps:
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -138,7 +150,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
           gh release create
-          "$GITHUB_REF_NAME"
+          "v${{ needs.auto-tag.outputs.version }}"
           --repo "$GITHUB_REPOSITORY"
           --notes ""
       - name: Upload artifact signatures to GitHub Release
@@ -146,14 +158,14 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
           gh release upload
-          "$GITHUB_REF_NAME" dist/*
+          "v${{ needs.auto-tag.outputs.version }}" dist/*
           --repo "$GITHUB_REPOSITORY"
 
 
   publish-to-testpypi:
     name: Publish Python distribution to TestPyPI
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    if: needs.auto-tag.outputs.tag_created == 'true'
+    needs: [auto-tag, build]
     runs-on: ubuntu-latest
     environment:
       name: testpypi
@@ -162,6 +174,7 @@ jobs:
       id-token: write
 
     steps:
+      - uses: actions/checkout@v4
       - name: Download all the dists
         uses: actions/download-artifact@v4
         with:
