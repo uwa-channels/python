@@ -45,7 +45,6 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    needs: auto-tag
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
