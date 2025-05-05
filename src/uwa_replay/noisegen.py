@@ -62,14 +62,20 @@ def noisegen(input_shape, fs, array_index=[0], noise=None):
 
     # Generate textbook style noise: independent Gaussian noise (17dB/decade) across array elements.
     if noise is None:
-        white_noise = np.random.randn(input_shape[0], input_shape[1])
-        freqs = np.fft.rfftfreq(input_shape[0], d=1 / fs)
-        spectrum = np.fft.rfft(white_noise, axis=0)
-        alpha = 1.7  # 1/f^alpha
-        with np.errstate(divide="ignore", invalid="ignore"):
-            filter_shape = np.where(freqs > 0, 1 / (freqs ** (alpha / 2)), 1)
-        filtered_spectrum = spectrum * filter_shape[:, None]
-        w = np.fft.irfft(filtered_spectrum, n=input_shape[0], axis=0)
+        nfft = 4096
+        fmin = 0
+        fmax = fs / 2
+
+        f = np.linspace(fs / 2 / nfft, fs / 2, nfft)
+        H_dB = -17 * np.log10(f / 1e3)
+        H_oneside = 10 ** (H_dB / 10)
+        H_oneside[: np.astype(np.floor(fmin / (fs / 2 / nfft)), int)] = 0
+        H_oneside[np.astype(np.ceil(fmax / (fs / 2 / nfft)), int) :] = 0
+        H = np.sqrt(np.concatenate((H_oneside, H_oneside[1::-1])))
+        h = np.real(np.fft.fftshift(np.fft.ifft(H)))
+        w = np.random.randn(input_shape[0], input_shape[1])
+        for m in range(input_shape[1]):
+            w[:, m] = sg.fftconvolve(w[:, m], h, "same")
 
     # Generate noise according to statistics collected during experiment.
     elif noise is not None and "sigma" in noise.keys():
