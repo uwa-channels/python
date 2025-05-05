@@ -31,7 +31,7 @@ if __name__ == "__main__":
     ## Add the noise
     if textbook_noise:
         output +=  0.05 * noisegen(output.shape, fs)
-    else
+    else:
         output += 0.05 * noisegen(output.shape, fs, array_index, noise)
     
     ## Downconvert
