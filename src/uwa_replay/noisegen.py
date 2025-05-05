@@ -70,8 +70,6 @@ def noisegen(input_shape, fs, array_index=[0], noise=None):
             filter_shape = np.where(freqs > 0, 1 / (freqs ** (alpha / 2)), 1)
         filtered_spectrum = spectrum * filter_shape[:, None]
         w = np.fft.irfft(filtered_spectrum, n=input_shape[0], axis=0)
-        w -= np.mean(w, axis=0)
-        w /= np.sqrt(pwr(w))
 
     # Generate noise according to statistics collected during experiment.
     elif noise is not None and "sigma" in noise.keys():
@@ -79,14 +77,11 @@ def noisegen(input_shape, fs, array_index=[0], noise=None):
         signal_size = np.array(input_shape)
         signal_size[0] = np.ceil(signal_size[0] / fs * Fs).astype(int)
         h = np.array(noise["h"])
-        h /= np.sqrt(pwr(h.T))[:, None]
         n = np.random.randn(signal_size[0], noise["sigma"].shape[0]) @ np.linalg.cholesky(noise["sigma"])
         w = np.zeros(signal_size)
         for m in range(signal_size[1]):
             w[:, m] = sg.fftconvolve(n[:, array_index[m]], h[array_index[m], :], "same")
         w = sg.resample_poly(w, frac.numerator, frac.denominator)
-        w -= np.mean(w, axis=0)
-        w /= np.sqrt(np.sum(pwr(w)))
         w = w[: input_shape[0], :]
 
     # Generate impulsive noise.
@@ -108,17 +103,12 @@ def noisegen(input_shape, fs, array_index=[0], noise=None):
 
         w = w[:, array_index]
         w = sg.resample_poly(w, frac.numerator, frac.denominator)
-        w /= np.sqrt(np.sum(pwr(w)))
         w = w[: input_shape[0], :]
 
     else:
         raise ValueError("Wrong noise_option.")
 
     return w
-
-
-def pwr(x):
-    return np.mean(np.abs(x) ** 2, axis=0)
 
 
 # [EOF]
