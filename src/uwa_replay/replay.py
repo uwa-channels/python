@@ -6,12 +6,12 @@ from fractions import Fraction
 
 def replay(input, fs, array_index, channel, start=None):
     """
-    Simulate the replay of a baseband signal through an underwater acoustic channel.
+    Simulate the replay of a passband signal through an underwater acoustic channel.
 
     Parameters:
     -----------
     input : ndarray
-        Complex baseband input signal.
+        Real passband input signal.
 
     fs : float
         Sampling frequency of the input signal in Hz.
@@ -69,7 +69,7 @@ def replay(input, fs, array_index, channel, start=None):
     if "theta_hat" in channel.keys():
         theta_hat = np.array(channel["theta_hat"])[:, array_index]
 
-    # Convert baseband and resample the signal to fs_delay
+    # Convert to baseband and resample the signal to fs_delay
     frac = Fraction(fs_delay / fs).limit_denominator()
     baseband = input * np.exp(-2j * np.pi * fc * np.arange(input.shape[0]) / fs)
     baseband = sg.resample_poly(baseband, frac.numerator, frac.denominator)
