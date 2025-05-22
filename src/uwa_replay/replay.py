@@ -58,6 +58,9 @@ def replay(input, fs, array_index, channel, start=None):
 
     """
 
+    # Validate inputs
+    validate_inputs(input, fs, array_index, channel)
+
     # Unpacking variables
     h_hat_real = np.array(channel["h_hat"]["real"])[:, array_index, :]
     h_hat_imag = np.array(channel["h_hat"]["imag"])[:, array_index, :]
@@ -85,7 +88,7 @@ def replay(input, fs, array_index, channel, start=None):
     buffer = np.zeros((L - 1,))
     baseband = np.concatenate((buffer, baseband, buffer))
     output = np.zeros((T + L, M), dtype=complex)
-    channel_time = np.arange(h_hat_real.shape[0]) / fs_time 
+    channel_time = np.arange(h_hat_real.shape[0]) / fs_time
     signal_time = np.arange(start, start + T + L) / fs_delay
     for m in range(M):
         ir_real = CubicSpline(channel_time, np.squeeze(h_hat_real[:, m, ::-1]))(signal_time)
@@ -116,6 +119,23 @@ def replay(input, fs, array_index, channel, start=None):
 
 def pwr(x):
     return np.mean(np.abs(x) ** 2, axis=0)
+
+
+def validate_inputs(input, fs, array_index, channel):
+    assert (
+        channel["version"][0, 0] >= 1.0
+    ), f"The minimum version of the channel matrix is 1.0, and you have {channel['version']:.1f}."
+
+    T = input.shape[0]
+    T = T / fs
+    _, N, T_max = channel["h_hat"]["real"].shape
+    T_max = T_max / channel["params"]["fs_time"][0, 0]
+
+    assert T < T_max, f"Duration of the input signal, {T * 1e3:.2f}ms, should be no larger than {T_max * 1e3:.2f}ms."
+
+    assert len(set(array_index)) == len(array_index), "index contains duplicate values."
+    assert max(array_index) <= N, f"array_index must be positive integers and cannot exceed {N}."
+    assert input.ndim == 1, "The maximum supported number of channels is 1."
 
 
 # [EOF]

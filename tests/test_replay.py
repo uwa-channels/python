@@ -23,6 +23,7 @@ def generate_mock_channel(fs_delay=8e3, fs_time=20, fc=13e3, M=5, L=100, T=400):
         "h_hat": {"real": h_hat_real, "imag": h_hat_imag},
         "theta_hat": theta_hat,
         "params": params,
+        "version": np.array([[1.0]])
     }
 
 
@@ -172,6 +173,7 @@ def test_replay_function(params):
             "fs_time": np.array([[fs_time]]),
             "fc": np.array([[fc]]),
         },
+        "version": np.array([[1.0]]),
     }
 
     if params["has_theta_hat"]:
