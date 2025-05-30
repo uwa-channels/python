@@ -37,7 +37,11 @@ def test_noisegen_valid_options(noise_option, M):
 
 
 def generate_mock_impulsive_noise(fs, alpha=1.7):
-    return {"Fs": np.array([[fs]]), "alpha": alpha, "beta": np.repeat(np.diag([1, 2, 3])[None, :, :], 65, axis=0)}
+    return {
+        "Fs": np.array([[fs]]),
+        "alpha": alpha,
+        "beta": np.repeat(np.diag([1, 2, 3])[None, :, :], 65, axis=0),
+    }
 
 
 def test_generate_impulsive_noise_valid_options():

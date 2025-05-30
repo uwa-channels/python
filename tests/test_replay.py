@@ -23,7 +23,7 @@ def generate_mock_channel(fs_delay=8e3, fs_time=20, fc=13e3, M=5, L=100, T=400):
         "h_hat": {"real": h_hat_real, "imag": h_hat_imag},
         "theta_hat": theta_hat,
         "params": params,
-        "version": np.array([[1.0]])
+        "version": np.array([[1.0]]),
     }
 
 
@@ -49,7 +49,7 @@ def test_replay_performance(benchmark):
     array_index = np.array(np.arange(32))
     channel = generate_mock_channel(M=32, T=800)
     input_signal = np.random.randn(16384)
-    result = benchmark(lambda: replay(input_signal, fs, array_index, channel))
+    _ = benchmark(lambda: replay(input_signal, fs, array_index, channel))
 
 
 @pytest.mark.parametrize(
@@ -158,7 +158,9 @@ def test_replay_function(params):
     rows = np.tile(np.arange(M), n_path)
     cols = np.round((path_delay + 0.2 * Tmp) * fs_delay).astype(int).ravel()
     h_hat[rows, cols] = c_p.ravel()
-    h_hat = np.tile(h_hat[None, :, :], (np.round(channel_time * fs_time).astype(int), 1, 1))
+    h_hat = np.tile(
+        h_hat[None, :, :], (np.round(channel_time * fs_time).astype(int), 1, 1)
+    )
 
     f_resamp = 1 / (1 + params["velocity"] / 1545)
     a = 1 - 1 / f_resamp
@@ -187,7 +189,9 @@ def test_replay_function(params):
     fs = 48e3
     data_symbols = np.random.randint(2, size=(4095,)) * 2 - 1
     baseband = sg.resample_poly(data_symbols, int(fs / R), 1)
-    passband = np.real(baseband * np.exp(2j * np.pi * fc * np.arange(len(baseband)) / fs))
+    passband = np.real(
+        baseband * np.exp(2j * np.pi * fc * np.arange(len(baseband)) / fs)
+    )
     input_signal = np.concatenate((np.zeros(1000), passband, np.zeros(1000)))
 
     r = replay(input_signal, fs, np.arange(M), channel, 1)
@@ -196,8 +200,12 @@ def test_replay_function(params):
         v = r[:, m] * np.exp(-2j * np.pi * fc * np.arange(len(r)) / fs)
 
         frac = Fraction(f_resamp).limit_denominator()
-        baseband_resampled = baseband * np.exp(-2j * a * np.pi * fc * np.arange(len(baseband)) / fs)
-        baseband_resampled = sg.resample_poly(baseband_resampled, frac.numerator, frac.denominator)
+        baseband_resampled = baseband * np.exp(
+            -2j * a * np.pi * fc * np.arange(len(baseband)) / fs
+        )
+        baseband_resampled = sg.resample_poly(
+            baseband_resampled, frac.numerator, frac.denominator
+        )
 
         xcor = np.abs(sg.fftconvolve(v, baseband_resampled[::-1].conj()))
         xcor = xcor / np.max(xcor)
@@ -219,7 +227,10 @@ def test_replay_function(params):
         # plt.plot((lags+sync[m]-sync[0]) / fs * 1e3, xcor)
         # plt.xlim([np.min(estimated_delays) * 1e3 - 5, np.max(estimated_delays) * 1e3 + 10])
         # plt.xlabel("Delay [ms]")
-        criteria = np.abs(np.sum(path_delay[:, m] * path_gain[:, m]) - np.sum(estimated_delays * estimated_gain))
+        criteria = np.abs(
+            np.sum(path_delay[:, m] * path_gain[:, m])
+            - np.sum(estimated_delays * estimated_gain)
+        )
         assert criteria < 3e-4 * n_path, f"Test criteria failed: {criteria:.3e}"
     # plt.show()
 

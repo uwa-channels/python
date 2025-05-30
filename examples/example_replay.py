@@ -21,8 +21,12 @@ if __name__ == "__main__":
     ## Generate single carrier signals
     data_symbols = np.random.choice([-1.0, +1.0], size=(1023,))
     baseband = sg.resample_poly(np.tile(data_symbols, n_repeat), fs / R, 1)
-    passband = np.real(baseband * np.exp(2j * np.pi * fc * np.arange(len(baseband)) / fs))
-    input = np.concatenate((np.zeros((int(fs / 10),)), passband, np.zeros((int(fs / 10)))))
+    passband = np.real(
+        baseband * np.exp(2j * np.pi * fc * np.arange(len(baseband)) / fs)
+    )
+    input = np.concatenate(
+        (np.zeros((int(fs / 10),)), passband, np.zeros(int(fs / 10)))
+    )
 
     ## Replay and generate noise
     output = replay(input, fs, array_index, channel)
@@ -30,10 +34,10 @@ if __name__ == "__main__":
 
     ## Add the noise
     if textbook_noise:
-        output +=  0.05 * noisegen(output.shape, fs)
+        output += 0.05 * noisegen(output.shape, fs)
     else:
         output += 0.05 * noisegen(output.shape, fs, array_index, noise)
-    
+
     ## Downconvert
     v = output * np.exp(-2j * np.pi * fc * np.arange(output.shape[0])[:, None] / fs)
 
@@ -45,7 +49,13 @@ if __name__ == "__main__":
 
     ## Plot the correlation
     plt.figure()
-    plt.plot(np.abs(np.correlate(v[:, 0], sg.resample_poly(data_symbols[:128], fs / R, 1), "full")))
+    plt.plot(
+        np.abs(
+            np.correlate(
+                v[:, 0], sg.resample_poly(data_symbols[:128], fs / R, 1), "full"
+            )
+        )
+    )
     plt.xlabel("Samples")
     plt.ylabel("Xcorr")
 

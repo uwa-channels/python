@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from uwa_replay import  unpack
+from uwa_replay import unpack
 
 
 @pytest.fixture(autouse=True)
@@ -99,7 +99,9 @@ def test_unpack_function(params):
         ),
         dtype=complex,
     )
-    h_hat[:, 0, np.round((path_delay + 0.2 * Tmp) * fs_delay).astype(int)] = np.tile(c_p, (h_hat.shape[0], 1))
+    h_hat[:, 0, np.round((path_delay + 0.2 * Tmp) * fs_delay).astype(int)] = np.tile(
+        c_p, (h_hat.shape[0], 1)
+    )
     a = 1 - 1 / params["f_resamp"]
     t = np.arange(np.round(channel_time * fs_delay).astype(int))
     theta_hat = -a * 2 * np.pi * fc * t[:, None] / fs_delay
@@ -124,7 +126,7 @@ def test_unpack_function(params):
 
     fs_time = 40
     array_index = [0]
-    unpacked = unpack(fs_time, array_index, channel)
+    _ = unpack(fs_time, array_index, channel)
 
     # import matplotlib.pyplot as plt
     # delay_axis = np.arange(unpacked.shape[0]) / fs_delay

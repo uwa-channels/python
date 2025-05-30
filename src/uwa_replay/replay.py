@@ -91,12 +91,18 @@ def replay(input, fs, array_index, channel, start=None):
     channel_time = np.arange(h_hat_real.shape[0]) / fs_time
     signal_time = np.arange(start, start + T + L) / fs_delay
     for m in range(M):
-        ir_real = CubicSpline(channel_time, np.squeeze(h_hat_real[:, m, ::-1]))(signal_time)
-        ir_imag = CubicSpline(channel_time, np.squeeze(h_hat_imag[:, m, ::-1]))(signal_time)
+        ir_real = CubicSpline(channel_time, np.squeeze(h_hat_real[:, m, ::-1]))(
+            signal_time
+        )
+        ir_imag = CubicSpline(channel_time, np.squeeze(h_hat_imag[:, m, ::-1]))(
+            signal_time
+        )
         ir = ir_real + 1j * ir_imag
         if "theta_hat" in channel.keys():
             for t in np.arange(T + L - 1):
-                output[t, m] = (ir[t, :] @ baseband[t : t + L]) * np.exp(1j * theta_hat[t, m])
+                output[t, m] = (ir[t, :] @ baseband[t : t + L]) * np.exp(
+                    1j * theta_hat[t, m]
+                )
             drift = theta_hat[np.arange(start, start + T + L), m] / (2 * np.pi * fc)
             output[:, m] = CubicSpline(signal_time, output[:, m])(signal_time + drift)
         else:
@@ -105,12 +111,16 @@ def replay(input, fs, array_index, channel, start=None):
 
     # Resample to match the original sampling rate and upshift to fc
     output = sg.resample_poly(output, frac.denominator, frac.numerator)
-    output = np.real(output * np.exp(2j * np.pi * fc * np.arange(len(output))[:, None] / fs))
+    output = np.real(
+        output * np.exp(2j * np.pi * fc * np.arange(len(output))[:, None] / fs)
+    )
 
     # Resample in passband if needed
     if "f_resamp" in channel.keys():
         frac_resample = Fraction(channel["f_resamp"][0, 0]).limit_denominator()
-        output = sg.resample_poly(output, frac_resample.numerator, frac_resample.denominator)
+        output = sg.resample_poly(
+            output, frac_resample.numerator, frac_resample.denominator
+        )
 
     output /= np.sqrt(np.sum(pwr(output)))
 
@@ -131,10 +141,14 @@ def validate_inputs(input, fs, array_index, channel):
     _, N, T_max = channel["h_hat"]["real"].shape
     T_max = T_max / channel["params"]["fs_time"][0, 0]
 
-    assert T < T_max, f"Duration of the input signal, {T * 1e3:.2f}ms, should be no larger than {T_max * 1e3:.2f}ms."
+    assert (
+        T < T_max
+    ), f"Duration of the input signal, {T * 1e3:.2f}ms, should be no larger than {T_max * 1e3:.2f}ms."
 
     assert len(set(array_index)) == len(array_index), "index contains duplicate values."
-    assert max(array_index) <= N, f"array_index must be positive integers and cannot exceed {N}."
+    assert (
+        max(array_index) <= N
+    ), f"array_index must be positive integers and cannot exceed {N}."
     assert input.ndim == 1, "The maximum supported number of channels is 1."
 
 

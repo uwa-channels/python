@@ -1,0 +1,63 @@
+# .pre-commit-config.yaml
+# Run `pre-commit install` after committing this file so Git starts
+# calling the hooks automatically.
+
+# Use the same interpreter everywhere so you get the same behaviour
+default_language_version:
+  python: python3.13     # bump when you raise the minimum in pyproject.toml
+
+repos:
+  # ---------- Basic hygiene ----------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-added-large-files   # warns if you commit files > 500 kB
+
+  # ---------- Auto‑formatting ----------
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        args: [--line-length=88]      # keep in sync with pyproject.toml if set
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.4.1                      # ruff 0.4.x
+    hooks:
+      - id: ruff
+        args:
+          - --line-length=88         # same width as Black
+          - --fix                    # auto‑apply safe fixes
+        # enable import‑sorting and Ruff‑format so isort is unnecessary
+        additional_dependencies: ["ruff==0.4.1"]
+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.20.0
+    hooks:
+      - id: pyupgrade
+        args: ["--py310-plus"]       # keep aligned with minimum version
+
+  # ---------- Static analysis ----------
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        additional_dependencies: ["flake8-bugbear>=24.0.0"]  # extra bug finding
+        args:
+          - --max-line-length=88
+          - --extend-ignore=E203,W503,E501,E266
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        args: ["--ignore-missing-imports", "--install-types", "--non-interactive"]
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.6
+    hooks:
+      - id: bandit
+        args: ["-ll"]                # “low” severity threshold

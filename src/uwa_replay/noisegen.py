@@ -4,7 +4,7 @@ from fractions import Fraction
 from scipy.stats import levy_stable
 
 
-def noisegen(input_shape, fs, array_index=[0], noise=None):
+def noisegen(input_shape, fs, array_index=(0,), noise=None):
     """
     Generate various types of noise signals for array processing.
 
@@ -83,7 +83,9 @@ def noisegen(input_shape, fs, array_index=[0], noise=None):
         signal_size = np.array(input_shape)
         signal_size[0] = np.ceil(signal_size[0] / fs * Fs).astype(int)
         h = np.array(noise["h"])
-        n = np.random.randn(signal_size[0], noise["sigma"].shape[0]) @ np.linalg.cholesky(noise["sigma"])
+        n = np.random.randn(
+            signal_size[0], noise["sigma"].shape[0]
+        ) @ np.linalg.cholesky(noise["sigma"])
         w = np.zeros(signal_size)
         for m in range(signal_size[1]):
             w[:, m] = sg.fftconvolve(n[:, array_index[m]], h[array_index[m], :], "same")

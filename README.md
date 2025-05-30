@@ -5,7 +5,7 @@
 
 [![Generic badge](https://img.shields.io/badge/Python-3.10-BLUE.svg)](https://shields.io/)
 
-Python toolbox to apply underwater acoustic channels to a signal of your choice, or to unpack an underwater acoustic channel. To learn more about the channels, check out the [documentation](https://uwa-channels.github.io/). 
+Python toolbox to apply underwater acoustic channels to a signal of your choice, or to unpack an underwater acoustic channel. To learn more about the channels, check out the [documentation](https://uwa-channels.github.io/).
 
 Please report bugs and suggest enhancements by [creating a new issue](https://github.com/uwa-channels/python/issues). We welcome your comments. See [CONTRIBUTING.MD](CONTRIBUTING.md) for more information.
 
