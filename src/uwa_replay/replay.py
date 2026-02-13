@@ -138,7 +138,7 @@ def validate_inputs(input, fs, array_index, channel):
 
     T = input.shape[0]
     T = T / fs
-    _, N, T_max = channel["h_hat"]["real"].shape
+    T_max, N, _ = channel["h_hat"]["real"].shape
     T_max = T_max / channel["params"]["fs_time"][0, 0]
 
     assert (
