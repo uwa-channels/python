@@ -407,59 +407,54 @@ def test_replay_function(params):
     t_replay_start = (start - 1) / p["fs_delay"]
     t_replay_end = (start + T_baseband + L) / p["fs_delay"]
 
-    # --- Figure: 2x2 layout ---
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    # --- Figure: 2 top, 1 bottom ---
+    fig = plt.figure(figsize=(12, 8))
+    ax_hhat = fig.add_subplot(2, 2, 1)
+    ax_speed = fig.add_subplot(2, 2, 2)
+    ax_xcor = fig.add_subplot(2, 1, 2)
 
-    # (0,0) h_hat waterfall: delay on x, time on y
-    ax = axes[0, 0]
-    ax.imshow(
+    # (top-left) h_hat waterfall: delay on x, time on y
+    ax_hhat.imshow(
         np.abs(h_hat_complex[:, 0, :]),
         aspect="auto",
         extent=[delay_axis[0], delay_axis[-1], t_snapshots[-1], t_snapshots[0]],
         interpolation="nearest",
     )
-    ax.axhline(t_replay_start, color="r", linestyle="--", linewidth=1.5)
-    ax.axhline(t_replay_end, color="r", linestyle="--", linewidth=1.5)
-    ax.set_xlabel("Delay [ms]")
-    ax.set_ylabel("Time [s]")
-    ax.set_title("|h_hat| (element 0)")
+    ax_hhat.axhline(t_replay_start, color="r", linestyle="--", linewidth=1.5)
+    ax_hhat.axhline(t_replay_end, color="r", linestyle="--", linewidth=1.5)
+    ax_hhat.set_xlabel("Delay [ms]")
+    ax_hhat.set_ylabel("Time [s]")
+    ax_hhat.set_title("|h_hat| (element 0)")
 
-    # (0,1) Speed from phase
-    ax = axes[0, 1]
+    # (top-right) Speed from phase
     dphi = np.diff(phi_field[:, 0])
     dt = 1 / p["fs_delay"]
     v_inst = -dphi / (dt * 2 * np.pi * p["fc"]) * C
     t_speed = np.arange(len(v_inst)) / p["fs_delay"]
-    ax.plot(t_speed, v_inst)
-    ax.axvline(t_replay_start, color="r", linestyle="--", linewidth=1.5)
-    ax.axvline(t_replay_end, color="r", linestyle="--", linewidth=1.5)
-    ax.set_xlabel("Time [s]")
-    ax.set_ylabel("Speed [m/s]")
-    ax.set_title(r"Instantaneous speed (from $\phi$)")
-    ax.grid(True)
+    ax_speed.plot(t_speed, v_inst)
+    ax_speed.axvline(t_replay_start, color="r", linestyle="--", linewidth=1.5)
+    ax_speed.axvline(t_replay_end, color="r", linestyle="--", linewidth=1.5)
+    ax_speed.set_xlabel("Time [s]")
+    ax_speed.set_ylabel("Speed [m/s]")
+    ax_speed.set_title(r"Instantaneous speed (from $\phi$)")
+    ax_speed.grid(True)
 
-    # (1,0) Ground truth
-    h1 = axes[1, 0]
-    for m in range(p["M"]):
-        h1.stem(
-            path_delay_0[:, m] * 1e3,
-            path_gain[:, m],
-            markerfmt="o",
-            basefmt=" ",
-            label=f"el {m}",
-        )
-    h1.set_xlabel("Delay [ms]")
-    h1.set_ylabel("Path gain")
-    h1.set_title("Ground truth")
-    h1.set_xlim([-0.2 * p["Tmp"] * 1e3, 1.5 * p["Tmp"] * 1e3])
-
-    # (1,1) Cross-correlation
-    h2 = axes[1, 1]
-
+    # (bottom) Ground truth stems + Cross-correlation
     baseband_ref = baseband
     sync_ref = None
     max_xcor = 0
     criteria = np.zeros(p["M"], dtype=bool)
+
+    # Plot ground truth as stems first
+    for m in range(p["M"]):
+        ax_xcor.stem(
+            path_delay_0[:, m] * 1e3,
+            path_gain[:, m],
+            markerfmt="o",
+            basefmt=" ",
+            linefmt="C%d-" % m,
+            label=f"truth el {m}",
+        )
 
     for m in range(p["M"]):
         v_m = r[:, m] * np.exp(-2j * np.pi * p["fc"] * np.arange(len(r)) / fs)
@@ -491,9 +486,9 @@ def test_replay_function(params):
         peaks = peaks[: p["n_path"]]
 
         xaxis = lags_win / fs * 1e3
-        h2.plot(xaxis, xcor_win)
+        ax_xcor.plot(xaxis, xcor_win, "--", color=f"C{m}", alpha=0.7)
         if len(peaks) > 0:
-            h2.plot(xaxis[peaks], xcor_win[peaks], "x", markersize=10)
+            ax_xcor.plot(xaxis[peaks], xcor_win[peaks], "x", color=f"C{m}", markersize=10)
 
         n_found = len(peaks)
         if n_found > 0:
@@ -512,10 +507,11 @@ def test_replay_function(params):
                 < tol
             )
 
-    h2.set_xlabel("Delay [ms]")
-    h2.set_ylabel("|Xcorr|")
-    h2.set_xlim([-0.2 * p["Tmp"] * 1e3, 1.5 * p["Tmp"] * 1e3])
-    h2.set_title("Cross-correlation")
+    ax_xcor.set_xlabel("Delay [ms]")
+    ax_xcor.set_ylabel("Path gain / |Xcorr|")
+    ax_xcor.set_xlim([-0.2 * p["Tmp"] * 1e3, 1.5 * p["Tmp"] * 1e3])
+    ax_xcor.set_title("Ground truth + Cross-correlation")
+    ax_xcor.legend(fontsize=7, ncol=2)
 
     result = "PASSED" if np.all(criteria) else "FAILED"
     fig.suptitle(f"{p['label']}: {result}")
