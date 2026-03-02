@@ -87,7 +87,9 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
         signal_size = np.array(input_shape)
         signal_size[0] = int(np.ceil(signal_size[0] / fs * Fs))
         h = np.array(noise["h"])
-        n = np.random.randn(signal_size[0], noise["sigma"].shape[0]) @ np.linalg.cholesky(noise["sigma"])
+        n = np.random.randn(
+            signal_size[0], noise["sigma"].shape[0]
+        ) @ np.linalg.cholesky(noise["sigma"]).T
         w = np.zeros(signal_size)
         for m in range(signal_size[1]):
             w[:, m] = sg.fftconvolve(n[:, array_index[m]], h[array_index[m], :], "same")
