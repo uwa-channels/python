@@ -55,6 +55,10 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
     ---------
     For more detailed examples, refer to the corresponding scripts in the `examples` folder.
 
+    Revision history:
+      - Apr.  1, 2025: Initial release.
+      - Feb. 27, 2026: Fixed spectrum mirror and np.astype usage.
+
     """
 
     if noise is not None:
@@ -69,9 +73,9 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
         f = np.linspace(fs / 2 / nfft, fs / 2, nfft)
         H_dB = -17 * np.log10(f / 1e3)
         H_oneside = 10 ** (H_dB / 10)
-        H_oneside[: np.astype(np.floor(fmin / (fs / 2 / nfft)), int)] = 0
-        H_oneside[np.astype(np.ceil(fmax / (fs / 2 / nfft)), int) :] = 0
-        H = np.sqrt(np.concatenate((H_oneside, H_oneside[1::-1])))
+        H_oneside[: int(np.floor(fmin / (fs / 2 / nfft)))] = 0
+        H_oneside[int(np.ceil(fmax / (fs / 2 / nfft))) :] = 0
+        H = np.sqrt(np.concatenate((H_oneside, H_oneside[-2::-1])))
         h = np.real(np.fft.fftshift(np.fft.ifft(H)))
         w = np.random.randn(input_shape[0], input_shape[1])
         for m in range(input_shape[1]):
@@ -81,11 +85,9 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
     elif noise is not None and "sigma" in noise.keys():
         frac = Fraction(fs / Fs).limit_denominator()
         signal_size = np.array(input_shape)
-        signal_size[0] = np.ceil(signal_size[0] / fs * Fs).astype(int)
+        signal_size[0] = int(np.ceil(signal_size[0] / fs * Fs))
         h = np.array(noise["h"])
-        n = np.random.randn(
-            signal_size[0], noise["sigma"].shape[0]
-        ) @ np.linalg.cholesky(noise["sigma"])
+        n = np.random.randn(signal_size[0], noise["sigma"].shape[0]) @ np.linalg.cholesky(noise["sigma"])
         w = np.zeros(signal_size)
         for m in range(signal_size[1]):
             w[:, m] = sg.fftconvolve(n[:, array_index[m]], h[array_index[m], :], "same")
@@ -98,7 +100,7 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
         beta = np.array(noise["beta"]).T
         frac = Fraction(fs / Fs).limit_denominator()
         signal_size = np.array(input_shape)
-        signal_size[0] = np.astype(np.ceil(signal_size[0] / fs * Fs), int)
+        signal_size[0] = int(np.ceil(signal_size[0] / fs * Fs))
         K = signal_size[0]
         N = beta.shape[0]
 
@@ -112,6 +114,18 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
         w = w[:, array_index]
         w = sg.resample_poly(w, frac.numerator, frac.denominator)
         w = w[: input_shape[0], :]
+
+        # Apply RMS power scaling
+        if "rms_power" in noise:
+            s = np.array(noise["rms_power"]).ravel()
+            w = w * s
+
+        # Apply bandpass filter
+        if "fc" in noise and "R" in noise:
+            fl = noise["fc"] - noise["R"] / 2 * 1.1
+            fh = noise["fc"] + noise["R"] / 2 * 1.1
+            sos = sg.butter(5, [fl, fh], btype="band", fs=fs, output="sos")
+            w = sg.sosfilt(sos, w, axis=0)
 
     else:
         raise ValueError("Wrong noise_option.")
