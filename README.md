@@ -52,4 +52,4 @@ These tests are executed automatically whenever changes are made to the source c
 # License
 The license is available in the [LICENSE](LICENSE) file within this repository.
 
-© 2025, Underwater Acoustic Channels Group.
+© 2025-2026, Underwater Acoustic Channels Group.
