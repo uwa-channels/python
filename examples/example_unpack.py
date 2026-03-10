@@ -1,7 +1,7 @@
 import numpy as np
 import h5py
 import matplotlib.pyplot as plt
-from uwa_replay import unpack
+from uwa_channels import unpack
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ Please report bugs and suggest enhancements by [creating a new issue](https://gi
 ## Installation
 
 ```bash
-pip install -i https://test.pypi.org/simple/ uwa-replay
+pip install -i https://test.pypi.org/simple/ uwa-channels
 ```
 
 ## Functions
@@ -31,7 +31,7 @@ Download the channel MAT-files from [here](https://www.dropbox.com/scl/fo/3gyt4c
 
 ```python
 import h5py
-from uwa_replay import replay, noisegen
+from uwa_channels import replay, noisegen
 
 channel = h5py.File("blue_1.mat", "r")
 noise = h5py.File("blue_1_noise.mat", "r")
@@ -47,7 +47,7 @@ See `examples/example_replay.py` for a complete example that generates a BPSK si
 
 ```python
 import h5py
-from uwa_replay import unpack
+from uwa_channels import unpack
 
 channel = h5py.File("blue_1.mat", "r")
 unpacked = unpack(fs_time, array_index, channel)

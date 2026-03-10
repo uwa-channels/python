@@ -32,10 +32,10 @@ from uwa_replay import noisegen
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402
 
 FS = 48000
-N = 500000       # For spectral / correlation / distribution tests
+N = 500000  # For spectral / correlation / distribution tests
 N_SHORT = 100000  # For size, resampling, subset, bandpass tests
 
 
@@ -153,7 +153,9 @@ def test_option1_spectral_slope():
     plt.savefig("fig_noise_option1_psd.png", dpi=150)
     plt.close(fig)
 
-    assert abs(p[0] - (-17)) < 17 * 0.15, f"Pink noise slope {p[0]:.1f} dB/decade, expected ~-17"
+    assert (
+        abs(p[0] - (-17)) < 17 * 0.15
+    ), f"Pink noise slope {p[0]:.1f} dB/decade, expected ~-17"
 
 
 def test_option1_spatial_independence():
@@ -240,7 +242,9 @@ def test_option2_identity_beta_independence():
     w = noisegen((N_SHORT, M), FS, list(range(M)), noise)
     C = np.corrcoef(w.T)
     off_diag = C - np.eye(M)
-    assert np.max(np.abs(off_diag)) < 0.05, "Diagonal-only beta should produce independent channels"
+    assert (
+        np.max(np.abs(off_diag)) < 0.05
+    ), "Diagonal-only beta should produce independent channels"
 
 
 def test_option2_resampling():
@@ -377,9 +381,9 @@ def test_option3_heavier_tail():
 
     k_heavy = _kurtosis(w_heavy[:, 0])
     k_light = _kurtosis(w_light[:, 0])
-    assert k_heavy > k_light, (
-        f"alpha=1.2 kurtosis ({k_heavy:.1f}) should exceed alpha=1.9 ({k_light:.1f})"
-    )
+    assert (
+        k_heavy > k_light
+    ), f"alpha=1.2 kurtosis ({k_heavy:.1f}) should exceed alpha=1.9 ({k_light:.1f})"
 
 
 def test_option3_rms_scaling():
@@ -452,7 +456,9 @@ def test_option3_alpha2_matches_gaussian():
     k_g = _kurtosis(w_g[:, 0])
     k_i = _kurtosis(w_i[:, 0])
 
-    assert k_i > k_g, f"alpha=1.5 kurtosis ({k_i:.1f}) should exceed alpha=2 ({k_g:.1f})"
+    assert (
+        k_i > k_g
+    ), f"alpha=1.5 kurtosis ({k_i:.1f}) should exceed alpha=2 ({k_g:.1f})"
 
 
 def test_option3_spatial_correlation():
@@ -517,9 +523,9 @@ def test_option3_spatial_correlation():
     plt.close(fig)
 
     # Structural checks (Spearman is the robust metric)
-    assert abs(C_spearman[0, 1]) > abs(C_spearman[0, -1]), (
-        "Adjacent channels should be more correlated than distant ones"
-    )
+    assert abs(C_spearman[0, 1]) > abs(
+        C_spearman[0, -1]
+    ), "Adjacent channels should be more correlated than distant ones"
     c_vs_d = [np.mean(np.abs(np.diag(C_spearman, d))) for d in range(1, M)]
     assert c_vs_d[0] > c_vs_d[-1], "Correlation should decay with element separation"
 

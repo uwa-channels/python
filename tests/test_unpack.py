@@ -1,10 +1,10 @@
 import pytest
 import numpy as np
-import scipy.signal as sg
 from uwa_replay import unpack
 import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402
 
 
 C = 1500
@@ -62,8 +62,7 @@ def build_unpack_channel(p):
     phi_const = -2 * np.pi * p["fc"] * (v_const / C) * t_delay
     if n_cycles > 0:
         phi_sin = (
-            p["fc"] * v_amp * T_ch / (C * n_cycles)
-            * (np.cos(omega_osc * t_delay) - 1)
+            p["fc"] * v_amp * T_ch / (C * n_cycles) * (np.cos(omega_osc * t_delay) - 1)
         )
     else:
         phi_sin = np.zeros_like(t_delay)
@@ -117,108 +116,192 @@ PARAMS = [
     # Static, no tracking
     {
         "label": "static_none",
-        "fc": 10e3, "fs_delay": 8e3, "fs_time": 20,
-        "n_path": 8, "Tmp": 10e-3, "coeff": 1,
+        "fc": 10e3,
+        "fs_delay": 8e3,
+        "fs_time": 20,
+        "n_path": 8,
+        "Tmp": 10e-3,
+        "coeff": 1,
         "channel_time": 5,
-        "tracking": "none", "has_f_resamp": False,
-        "v_const": 0, "v_amp": 0, "n_cycles": 0,
+        "tracking": "none",
+        "has_f_resamp": False,
+        "v_const": 0,
+        "v_amp": 0,
+        "n_cycles": 0,
     },
     # Constant drift, theta
     {
         "label": "drift_theta",
-        "fc": 10e3, "fs_delay": 8e3, "fs_time": 100,
-        "n_path": 8, "Tmp": 10e-3, "coeff": 1,
+        "fc": 10e3,
+        "fs_delay": 8e3,
+        "fs_time": 100,
+        "n_path": 8,
+        "Tmp": 10e-3,
+        "coeff": 1,
         "channel_time": 5,
-        "tracking": "theta", "has_f_resamp": False,
-        "v_const": -2, "v_amp": 0, "n_cycles": 0,
+        "tracking": "theta",
+        "has_f_resamp": False,
+        "v_const": -2,
+        "v_amp": 0,
+        "n_cycles": 0,
     },
     {
         "label": "drift_theta_fast",
-        "fc": 12e3, "fs_delay": 10e3, "fs_time": 100,
-        "n_path": 8, "Tmp": 15e-3, "coeff": 1.5,
+        "fc": 12e3,
+        "fs_delay": 10e3,
+        "fs_time": 100,
+        "n_path": 8,
+        "Tmp": 15e-3,
+        "coeff": 1.5,
         "channel_time": 5,
-        "tracking": "theta", "has_f_resamp": False,
-        "v_const": 4, "v_amp": 0, "n_cycles": 0,
+        "tracking": "theta",
+        "has_f_resamp": False,
+        "v_const": 4,
+        "v_amp": 0,
+        "n_cycles": 0,
     },
     # Constant drift, phi
     {
         "label": "drift_phi",
-        "fc": 10e3, "fs_delay": 8e3, "fs_time": 20,
-        "n_path": 8, "Tmp": 10e-3, "coeff": 1,
+        "fc": 10e3,
+        "fs_delay": 8e3,
+        "fs_time": 20,
+        "n_path": 8,
+        "Tmp": 10e-3,
+        "coeff": 1,
         "channel_time": 5,
-        "tracking": "phi", "has_f_resamp": False,
-        "v_const": -2, "v_amp": 0, "n_cycles": 0,
+        "tracking": "phi",
+        "has_f_resamp": False,
+        "v_const": -2,
+        "v_amp": 0,
+        "n_cycles": 0,
     },
     {
         "label": "drift_phi_fast",
-        "fc": 12e3, "fs_delay": 10e3, "fs_time": 20,
-        "n_path": 8, "Tmp": 15e-3, "coeff": 1.5,
+        "fc": 12e3,
+        "fs_delay": 10e3,
+        "fs_time": 20,
+        "n_path": 8,
+        "Tmp": 15e-3,
+        "coeff": 1.5,
         "channel_time": 5,
-        "tracking": "phi", "has_f_resamp": False,
-        "v_const": 4, "v_amp": 0, "n_cycles": 0,
+        "tracking": "phi",
+        "has_f_resamp": False,
+        "v_const": 4,
+        "v_amp": 0,
+        "n_cycles": 0,
     },
     # f_resamp only
     {
         "label": "f_resamp_only",
-        "fc": 15e3, "fs_delay": 16e3, "fs_time": 20,
-        "n_path": 10, "Tmp": 20e-3, "coeff": 1,
+        "fc": 15e3,
+        "fs_delay": 16e3,
+        "fs_time": 20,
+        "n_path": 10,
+        "Tmp": 20e-3,
+        "coeff": 1,
         "channel_time": 5,
-        "tracking": "none", "has_f_resamp": True,
-        "v_const": 2, "v_amp": 0, "n_cycles": 0,
+        "tracking": "none",
+        "has_f_resamp": True,
+        "v_const": 2,
+        "v_amp": 0,
+        "n_cycles": 0,
     },
     # f_resamp + theta
     {
         "label": "f_resamp_theta",
-        "fc": 15e3, "fs_delay": 16e3, "fs_time": 100,
-        "n_path": 10, "Tmp": 20e-3, "coeff": 1,
+        "fc": 15e3,
+        "fs_delay": 16e3,
+        "fs_time": 100,
+        "n_path": 10,
+        "Tmp": 20e-3,
+        "coeff": 1,
         "channel_time": 5,
-        "tracking": "theta", "has_f_resamp": True,
-        "v_const": 2, "v_amp": 0.3, "n_cycles": 3,
+        "tracking": "theta",
+        "has_f_resamp": True,
+        "v_const": 2,
+        "v_amp": 0.3,
+        "n_cycles": 3,
     },
     # f_resamp + phi
     {
         "label": "f_resamp_phi",
-        "fc": 15e3, "fs_delay": 16e3, "fs_time": 20,
-        "n_path": 10, "Tmp": 20e-3, "coeff": 1,
+        "fc": 15e3,
+        "fs_delay": 16e3,
+        "fs_time": 20,
+        "n_path": 10,
+        "Tmp": 20e-3,
+        "coeff": 1,
         "channel_time": 5,
-        "tracking": "phi", "has_f_resamp": True,
-        "v_const": 2, "v_amp": 0.3, "n_cycles": 3,
+        "tracking": "phi",
+        "has_f_resamp": True,
+        "v_const": 2,
+        "v_amp": 0.3,
+        "n_cycles": 3,
     },
     # Sway, theta
     {
         "label": "sway_theta",
-        "fc": 12e3, "fs_delay": 10e3, "fs_time": 100,
-        "n_path": 8, "Tmp": 15e-3, "coeff": 1.5,
+        "fc": 12e3,
+        "fs_delay": 10e3,
+        "fs_time": 100,
+        "n_path": 8,
+        "Tmp": 15e-3,
+        "coeff": 1.5,
         "channel_time": 5,
-        "tracking": "theta", "has_f_resamp": False,
-        "v_const": 0, "v_amp": 1.5, "n_cycles": 4,
+        "tracking": "theta",
+        "has_f_resamp": False,
+        "v_const": 0,
+        "v_amp": 1.5,
+        "n_cycles": 4,
     },
     # Sway, phi
     {
         "label": "sway_phi",
-        "fc": 12e3, "fs_delay": 10e3, "fs_time": 20,
-        "n_path": 8, "Tmp": 15e-3, "coeff": 1.5,
+        "fc": 12e3,
+        "fs_delay": 10e3,
+        "fs_time": 20,
+        "n_path": 8,
+        "Tmp": 15e-3,
+        "coeff": 1.5,
         "channel_time": 5,
-        "tracking": "phi", "has_f_resamp": False,
-        "v_const": 0, "v_amp": 1.5, "n_cycles": 4,
+        "tracking": "phi",
+        "has_f_resamp": False,
+        "v_const": 0,
+        "v_amp": 1.5,
+        "n_cycles": 4,
     },
     # Combined, theta
     {
         "label": "combined_theta",
-        "fc": 12e3, "fs_delay": 10e3, "fs_time": 100,
-        "n_path": 8, "Tmp": 15e-3, "coeff": 1.5,
+        "fc": 12e3,
+        "fs_delay": 10e3,
+        "fs_time": 100,
+        "n_path": 8,
+        "Tmp": 15e-3,
+        "coeff": 1.5,
         "channel_time": 5,
-        "tracking": "theta", "has_f_resamp": False,
-        "v_const": 3, "v_amp": 0.5, "n_cycles": 3,
+        "tracking": "theta",
+        "has_f_resamp": False,
+        "v_const": 3,
+        "v_amp": 0.5,
+        "n_cycles": 3,
     },
     # Combined, phi
     {
         "label": "combined_phi",
-        "fc": 12e3, "fs_delay": 10e3, "fs_time": 20,
-        "n_path": 8, "Tmp": 15e-3, "coeff": 1.5,
+        "fc": 12e3,
+        "fs_delay": 10e3,
+        "fs_time": 20,
+        "n_path": 8,
+        "Tmp": 15e-3,
+        "coeff": 1.5,
         "channel_time": 5,
-        "tracking": "phi", "has_f_resamp": False,
-        "v_const": 3, "v_amp": 0.5, "n_cycles": 3,
+        "tracking": "phi",
+        "has_f_resamp": False,
+        "v_const": 3,
+        "v_amp": 0.5,
+        "n_cycles": 3,
     },
 ]
 
@@ -238,8 +321,8 @@ def test_unpack_function(params):
     assert unpacked.shape[1] == 1
 
     # --- Plot ---
-    h_hat_complex = (
-        np.array(channel["h_hat"]["real"]) + 1j * np.array(channel["h_hat"]["imag"])
+    h_hat_complex = np.array(channel["h_hat"]["real"]) + 1j * np.array(
+        channel["h_hat"]["imag"]
     )
     N_time = h_hat_complex.shape[0]
     L = h_hat_complex.shape[2]
@@ -254,9 +337,14 @@ def test_unpack_function(params):
     ax = axes[0]
     im = np.squeeze(np.abs(unpacked[:, 0, :])).T
     im = 20 * np.log10(im + 1e-10)
-    ax.imshow(im, aspect="auto",
-              extent=[delay_axis[0], delay_axis[-1], time_axis[-1], time_axis[0]],
-              vmin=-30, vmax=0, interpolation="nearest")
+    ax.imshow(
+        im,
+        aspect="auto",
+        extent=[delay_axis[0], delay_axis[-1], time_axis[-1], time_axis[0]],
+        vmin=-30,
+        vmax=0,
+        interpolation="nearest",
+    )
     ax.set_xlabel("Delay [ms]")
     ax.set_ylabel("Time [s]")
     ax.set_title("Unpacked")
@@ -266,9 +354,14 @@ def test_unpack_function(params):
     delay_axis_h = np.arange(L) / p["fs_delay"] * 1e3
     im_h = np.abs(h_hat_complex[:, 0, :])
     im_h = 20 * np.log10(im_h + 1e-10)
-    ax.imshow(im_h, aspect="auto",
-              extent=[delay_axis_h[0], delay_axis_h[-1], t_snapshots[-1], t_snapshots[0]],
-              vmin=-30, vmax=0, interpolation="nearest")
+    ax.imshow(
+        im_h,
+        aspect="auto",
+        extent=[delay_axis_h[0], delay_axis_h[-1], t_snapshots[-1], t_snapshots[0]],
+        vmin=-30,
+        vmax=0,
+        interpolation="nearest",
+    )
     ax.set_xlabel("Delay [ms]")
     ax.set_ylabel("Time [s]")
     ax.set_title("h_hat (input)")
@@ -285,8 +378,11 @@ def test_unpack_function(params):
     if p.get("has_f_resamp", False) and "f_resamp" in channel:
         phi_plot = phi_plot + (
             (1 / channel["f_resamp"][0, 0] - 1)
-            * 2 * np.pi * p["fc"]
-            * np.arange(1, len(phi_plot) + 1) / p["fs_delay"]
+            * 2
+            * np.pi
+            * p["fc"]
+            * np.arange(1, len(phi_plot) + 1)
+            / p["fs_delay"]
         )
     dphi = np.diff(phi_plot)
     v_inst = -dphi / (1 / p["fs_delay"] * 2 * np.pi * p["fc"]) * C

@@ -2,7 +2,7 @@ import numpy as np
 import scipy.signal as sg
 import h5py
 import matplotlib.pyplot as plt
-from uwa_replay import replay, noisegen
+from uwa_channels import replay, noisegen
 
 
 if __name__ == "__main__":

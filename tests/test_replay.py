@@ -7,7 +7,7 @@ from uwa_replay import replay
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402
 
 C = 1500
 FS = 48e3
@@ -55,9 +55,9 @@ def compensate_doppler(v_in, fs, fc, fs_delay, phi_field, start):
 def build_channel(p):
     """Build a synthetic channel struct from test parameters."""
     # Multipath geometry
-    path_delay_0 = np.concatenate(([0], np.sort(randsamples(np.arange(1, p["Tmp"] * 1e3) / 1e3, p["n_path"] - 1))))[
-        :, None
-    ]
+    path_delay_0 = np.concatenate(
+        ([0], np.sort(randsamples(np.arange(1, p["Tmp"] * 1e3) / 1e3, p["n_path"] - 1)))
+    )[:, None]
 
     incremental_delay = np.arange(p["M"])[None, :] * p["d"] / C
     path_delay_0 = path_delay_0 + incremental_delay
@@ -87,7 +87,9 @@ def build_channel(p):
     # Cumulative phase at fs_delay rate
     phi = -2 * np.pi * p["fc"] * (v_const / C) * t_delay
     if n_cycles > 0:
-        phi += p["fc"] * v_amp * T_ch / (C * n_cycles) * (np.cos(omega_osc * t_delay) - 1)
+        phi += (
+            p["fc"] * v_amp * T_ch / (C * n_cycles) * (np.cos(omega_osc * t_delay) - 1)
+        )
 
     # Build h_hat
     L = int(np.ceil(p["fs_delay"] * p["Tmp"] * 1.5))
@@ -96,7 +98,9 @@ def build_channel(p):
     if p["tracking"] == "theta" and has_motion:
         h_hat = np.zeros((N_time, p["M"], L), dtype=complex)
         for k in range(N_time):
-            h_hat[k, :, :] = place_taps(L, p["M"], path_delay_0 + dtau_snap[k], c_p, p["Tmp"], p["fs_delay"])
+            h_hat[k, :, :] = place_taps(
+                L, p["M"], path_delay_0 + dtau_snap[k], c_p, p["Tmp"], p["fs_delay"]
+            )
     else:
         h_hat_static = place_taps(L, p["M"], path_delay_0, c_p, p["Tmp"], p["fs_delay"])
         h_hat = np.tile(h_hat_static[None, :, :], (N_time, 1, 1))
@@ -391,14 +395,20 @@ def test_replay_function(params):
     # Transmit signal
     data_symbols = np.random.randint(2, size=(4095,)) * 2 - 1
     baseband = sg.resample_poly(data_symbols, int(fs / p["R"]), 1)
-    passband = np.real(baseband * np.exp(2j * np.pi * p["fc"] * np.arange(len(baseband)) / fs))
-    input_signal = np.concatenate((np.zeros(int(round(fs / 10))), passband, np.zeros(int(round(fs / 10)))))
+    passband = np.real(
+        baseband * np.exp(2j * np.pi * p["fc"] * np.arange(len(baseband)) / fs)
+    )
+    input_signal = np.concatenate(
+        (np.zeros(int(round(fs / 10))), passband, np.zeros(int(round(fs / 10))))
+    )
 
     # Replay
     r = replay(input_signal, fs, list(range(p["M"])), channel, start)
 
     # h_hat for plotting
-    h_hat_complex = np.array(channel["h_hat"]["real"]) + 1j * np.array(channel["h_hat"]["imag"])
+    h_hat_complex = np.array(channel["h_hat"]["real"]) + 1j * np.array(
+        channel["h_hat"]["imag"]
+    )
     delay_axis = np.arange(L) / p["fs_delay"] * 1e3
 
     # Replay time window
@@ -460,7 +470,9 @@ def test_replay_function(params):
         v_m = r[:, m] * np.exp(-2j * np.pi * p["fc"] * np.arange(len(r)) / fs)
 
         if has_motion:
-            v_m = compensate_doppler(v_m, fs, p["fc"], p["fs_delay"], phi_field[:, m], start)
+            v_m = compensate_doppler(
+                v_m, fs, p["fc"], p["fs_delay"], phi_field[:, m], start
+            )
 
         xcor = sg.correlate(v_m, baseband_ref, mode="full")
         lags = np.arange(len(xcor)) - (len(baseband_ref) - 1)
@@ -476,7 +488,9 @@ def test_replay_function(params):
         lags_shifted = lags - sync_ref
         xcor_norm = np.abs(xcor) / max_xcor
 
-        win = (lags_shifted >= -0.2 * p["Tmp"] * fs) & (lags_shifted <= 1.5 * p["Tmp"] * fs)
+        win = (lags_shifted >= -0.2 * p["Tmp"] * fs) & (
+            lags_shifted <= 1.5 * p["Tmp"] * fs
+        )
         xcor_win = xcor_norm[win]
         lags_win = lags_shifted[win]
 
@@ -488,7 +502,9 @@ def test_replay_function(params):
         xaxis = lags_win / fs * 1e3
         ax_xcor.plot(xaxis, xcor_win, "--", color=f"C{m}", alpha=0.7)
         if len(peaks) > 0:
-            ax_xcor.plot(xaxis[peaks], xcor_win[peaks], "x", color=f"C{m}", markersize=10)
+            ax_xcor.plot(
+                xaxis[peaks], xcor_win[peaks], "x", color=f"C{m}", markersize=10
+            )
 
         n_found = len(peaks)
         if n_found > 0:
@@ -502,7 +518,10 @@ def test_replay_function(params):
             criteria[m] = (
                 np.abs(
                     np.sum(est_delays[idx_e[:n_compare]] * est_gains[idx_e[:n_compare]])
-                    - np.sum(path_delay_0[idx_t[:n_compare], m] * path_gain[idx_t[:n_compare], m])
+                    - np.sum(
+                        path_delay_0[idx_t[:n_compare], m]
+                        * path_gain[idx_t[:n_compare], m]
+                    )
                 )
                 < tol
             )

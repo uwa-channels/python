@@ -55,7 +55,9 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     fs_delay = channel["params"]["fs_delay"][0, 0]
     fs_time = channel["params"]["fs_time"][0, 0]
     fc = channel["params"]["fc"][0, 0]
-    h_hat = np.array(channel["h_hat"]["real"] + 1j * channel["h_hat"]["imag"])[:, array_index, :]
+    h_hat = np.array(channel["h_hat"]["real"] + 1j * channel["h_hat"]["imag"])[
+        :, array_index, :
+    ]
     T, M, K = h_hat.shape
 
     N_phi = int(np.ceil(T * fs_delay / fs_time))
@@ -71,7 +73,14 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
         phase_drift += np.array(channel["phi_hat"])[:, array_index]
 
     if "f_resamp" in channel:
-        f_resamp_phase = (1 / channel["f_resamp"][0, 0] - 1) * 2 * np.pi * fc * np.arange(N_phi)[:, None] / fs_delay
+        f_resamp_phase = (
+            (1 / channel["f_resamp"][0, 0] - 1)
+            * 2
+            * np.pi
+            * fc
+            * np.arange(N_phi)[:, None]
+            / fs_delay
+        )
         phase_all += f_resamp_phase
         phase_drift += f_resamp_phase
 
@@ -106,18 +115,28 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
 
     for m in range(M):
         h_hat_m = np.squeeze(h_hat[:, m, :])
-        h_resampled = sg.resample_poly(h_hat_m, frac_1.numerator, frac_1.denominator, axis=0)
+        h_resampled = sg.resample_poly(
+            h_hat_m, frac_1.numerator, frac_1.denominator, axis=0
+        )
 
         if has_phase:
-            phase_resampled = sg.resample_poly(phase_all[:, m], frac_2.numerator, frac_2.denominator, axis=0)
+            phase_resampled = sg.resample_poly(
+                phase_all[:, m], frac_2.numerator, frac_2.denominator, axis=0
+            )
             h_resampled = h_resampled * np.exp(1j * phase_resampled)[:, None]
 
         if has_drift:
-            drift_resampled = sg.resample_poly(phase_drift[:, m], frac_2.numerator, frac_2.denominator, axis=0)
+            drift_resampled = sg.resample_poly(
+                phase_drift[:, m], frac_2.numerator, frac_2.denominator, axis=0
+            )
             drift = drift_resampled / (2 * np.pi * fc)
             for t in range(h_resampled.shape[0]):
-                h_re = CubicSpline(delays, np.real(h_resampled[t, :]))(delays + drift[t])
-                h_im = CubicSpline(delays, np.imag(h_resampled[t, :]))(delays + drift[t])
+                h_re = CubicSpline(delays, np.real(h_resampled[t, :]))(
+                    delays + drift[t]
+                )
+                h_im = CubicSpline(delays, np.imag(h_resampled[t, :]))(
+                    delays + drift[t]
+                )
                 h_resampled[t, :] = h_re + 1j * h_im
 
         unpacked_channel[:, m, :] = h_resampled.T

@@ -168,7 +168,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/uwa-replay
+      url: https://test.pypi.org/p/uwa-channels
     permissions:
       id-token: write
 
