@@ -28,7 +28,7 @@ Revision history:
 import pytest
 import numpy as np
 import scipy.signal as sg
-from uwa_replay import noisegen
+from uwa_channels import noisegen
 import matplotlib
 
 matplotlib.use("Agg")

@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from uwa_replay import unpack
+from uwa_channels import unpack
 import matplotlib
 
 matplotlib.use("Agg")

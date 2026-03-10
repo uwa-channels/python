@@ -3,7 +3,7 @@ import numpy as np
 import scipy.signal as sg
 from scipy.interpolate import CubicSpline
 from fractions import Fraction
-from uwa_replay import replay
+from uwa_channels import replay
 import matplotlib
 
 matplotlib.use("Agg")
