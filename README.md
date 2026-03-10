@@ -12,7 +12,7 @@ Please report bugs and suggest enhancements by [creating a new issue](https://gi
 ## Installation
 
 ```bash
-pip install -i https://test.pypi.org/simple/ uwa-channels
+pip install uwa-channels
 ```
 
 ## Functions
