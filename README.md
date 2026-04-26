@@ -1,5 +1,6 @@
 [![CI](https://github.com/uwa-channels/python/actions/workflows/ci.yaml/badge.svg)](https://github.com/uwa-channels/python/actions/workflows/ci.yaml)
 [![codecov](https://codecov.io/gh/uwa-channels/python/graph/badge.svg?token=0VK4040WNU)](https://codecov.io/gh/uwa-channels/python)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19643731.svg)](https://doi.org/10.5281/zenodo.19643731)
 
 # Underwater Acoustic Channel Toolbox — Python
 
@@ -25,7 +26,7 @@ pip install uwa-channels
 
 ## Quick start
 
-Download the channel MAT-files from [here](https://www.dropbox.com/scl/fo/3gyt4cgw47jfx716v0epd/AIqYaL5S2RxGylREu3sn-vY?rlkey=w2mvoklkm42zrrf6k6lwlzcxu&st=u3u6b5r9&dl=0) and place them in your working directory.
+Download the channel MAT-files from [here](https://zenodo.org/records/19643731) and place them in your working directory.
 
 ### Replay and noise generation
 
