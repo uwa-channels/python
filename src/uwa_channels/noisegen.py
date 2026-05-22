@@ -64,8 +64,9 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
         w = _noise_mixing(input_shape, fs, Fs, noise, array_index)
 
         # Per-channel RMS power scaling
-        rms_power = np.asarray(noise["rms_power"]).ravel()
-        w = w * rms_power[list(array_index)]
+        if "rms_power" in channel:
+            rms_power = np.asarray(noise["rms_power"]).ravel()
+            w = w * rms_power[list(array_index)]
 
         # Bandpass filtering (zero-phase to match MATLAB's bandpass)
         fc = float(noise["fc"])
