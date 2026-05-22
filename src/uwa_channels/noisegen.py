@@ -64,7 +64,7 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
         w = _noise_mixing(input_shape, fs, Fs, noise, array_index)
 
         # Per-channel RMS power scaling
-        if "rms_power" in channel:
+        if "rms_power" in noise:
             rms_power = np.asarray(noise["rms_power"]).ravel()
             w = w * rms_power[list(array_index)]
 
