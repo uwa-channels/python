@@ -60,7 +60,7 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
     if noise is None:
         w = _noise_pink(input_shape, fs)
     elif noise is not None:
-        Fs = float(noise["Fs"])
+        Fs = float(noise["Fs"][0, 0])
         w = _noise_mixing(input_shape, fs, Fs, noise, array_index)
 
         # Per-channel RMS power scaling
@@ -69,8 +69,8 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
             w = w * rms_power[list(array_index)]
 
         # Bandpass filtering (zero-phase to match MATLAB's bandpass)
-        fc = float(noise["fc"])
-        R = float(noise["R"])
+        fc = float(noise["fc"][0, 0])
+        R = float(noise["R"][0, 0])
         fl = fc - R / 2 * 1.1
         fh = fc + R / 2 * 1.1
         sos = sg.butter(21, [fl, fh], btype="band", fs=fs, output="sos")
@@ -102,7 +102,7 @@ def _noise_pink(input_shape, fs):
 
 def _noise_mixing(input_shape, fs, Fs, noise, array_index):
     """Mixing-coefficient noise (Gaussian or impulsive via stabrnd/levy_stable)."""
-    alpha = float(noise["alpha"])
+    alpha = float(noise["alpha"][0, 0])
     beta = np.asarray(noise["beta"])
 
     # Handle MATLAB-style (K, M, M) or Python-style (M, M, K)

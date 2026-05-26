@@ -8,7 +8,7 @@ from uwa_channels import replay, noisegen
 if __name__ == "__main__":
 
     channel = h5py.File("blue_1.mat", "r")
-    noise = h5py.File("blue_1_noise.mat", "r")
+    noise = h5py.File("blue_noise.mat", "r")
 
     ## Parameters
     fs = 48e3
