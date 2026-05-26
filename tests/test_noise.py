@@ -97,11 +97,11 @@ def make_noise_struct(alpha, perturb=0.05):
     rms_power = 3.2e-4 * (1 + 0.1 * np.linspace(-1, 1, M)).reshape(-1, 1)
 
     return {
-        "Fs": Fs,
-        "R": R,
-        "alpha": alpha,
+        "Fs": np.array([[Fs]]),
+        "R": np.array([[R]]),
+        "alpha": np.array([[alpha]]),
         "beta": beta,
-        "fc": fc,
+        "fc": np.array([[fc]]),
         "rms_power": rms_power,
         "version": 1.0,
     }
@@ -284,8 +284,8 @@ def test_option2_rms_scaling():
 def test_option2_bandpass():
     """Verify bandpass filtering."""
     noise = make_noise_struct(2)
-    fc = noise["fc"]
-    R = noise["R"]
+    fc = float(noise["fc"][0, 0])
+    R = float(noise["R"][0, 0])
 
     w = noisegen((N_SHORT, 2), FS, [0, 1], noise)
     f, pxx = sg.welch(w[:, 0], FS, nperseg=8192)
@@ -413,8 +413,8 @@ def test_option3_resampling():
 def test_option3_bandpass():
     """Verify bandpass filtering for impulsive noise."""
     noise = make_noise_struct(1.7)
-    fc = noise["fc"]
-    R = noise["R"]
+    fc = float(noise["fc"][0, 0])
+    R = float(noise["R"][0, 0])
 
     w = noisegen((N_SHORT, 2), FS, [0, 1], noise)
     f, pxx = sg.welch(w[:, 0], FS, nperseg=8192)
@@ -497,11 +497,11 @@ def test_option3_spatial_correlation():
 
     im = axes[0, 1].imshow(C_pearson, vmin=-1, vmax=1, cmap="RdBu_r")
     fig.colorbar(im, ax=axes[0, 1], shrink=0.8)
-    axes[0, 1].set_title(f"Pearson C (α={noise['alpha']})")
+    axes[0, 1].set_title(f"Pearson C (α={float(noise['alpha'][0, 0])})")
 
     im = axes[1, 0].imshow(C_spearman, vmin=-1, vmax=1, cmap="RdBu_r")
     fig.colorbar(im, ax=axes[1, 0], shrink=0.8)
-    axes[1, 0].set_title(f"Spearman C (α={noise['alpha']})")
+    axes[1, 0].set_title(f"Spearman C (α={float(noise['alpha'][0, 0])})")
 
     # Correlation decay comparison
     offsets = np.arange(1, M)
@@ -517,7 +517,7 @@ def test_option3_spatial_correlation():
     axes[1, 1].legend()
     axes[1, 1].grid(True)
 
-    fig.suptitle(f"Impulsive (α={noise['alpha']}) spatial correlation")
+    fig.suptitle(f"Impulsive (α={float(noise['alpha'][0, 0])}) spatial correlation")
     fig.tight_layout()
     plt.savefig("fig_noise_option3_correlation.png", dpi=150)
     plt.close(fig)
