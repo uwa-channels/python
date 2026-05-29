@@ -71,8 +71,8 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
         # Bandpass filtering (zero-phase to match MATLAB's bandpass)
         fc = float(noise["fc"][0, 0])
         R = float(noise["R"][0, 0])
-        fl = fc - R / 2 * 1.1
-        fh = fc + R / 2 * 1.1
+        fl = fc - R / 2 * 1.01
+        fh = fc + R / 2 * 1.01
         sos = sg.butter(21, [fl, fh], btype="band", fs=fs, output="sos")
         w = sg.sosfiltfilt(sos, w, axis=0)
     else:
@@ -82,18 +82,19 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
 
 
 def _noise_pink(input_shape, fs):
-    """Independent pink Gaussian noise (17 dB/decade)."""
+    """Independent pink Gaussian noise (-17 dB per decade), unit power per channel,
+    so the summed power over channels equals the channel count."""
     nfft = 4096
     fmin = 0
     fmax = fs / 2
-
     f = np.linspace(fs / 2 / nfft, fs / 2, nfft)
     H_dB = -17 * np.log10(f / 1e3)
     H_oneside = 10 ** (H_dB / 10)
     H_oneside[: int(np.floor(fmin / (fs / 2 / nfft)))] = 0
     H_oneside[int(np.ceil(fmax / (fs / 2 / nfft))) :] = 0
-    H = np.sqrt(np.concatenate((H_oneside, H_oneside[-2::-1])))
+    H = np.sqrt(np.concatenate((H_oneside, H_oneside[:0:-1])))
     h = np.real(np.fft.fftshift(np.fft.ifft(H)))
+    h /= np.sqrt(np.sum(h**2))
     w = np.random.randn(input_shape[0], input_shape[1])
     for m in range(input_shape[1]):
         w[:, m] = sg.fftconvolve(w[:, m], h, "same")
