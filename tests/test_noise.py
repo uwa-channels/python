@@ -266,19 +266,24 @@ def test_option2_array_index_subset():
 
 
 def test_option2_rms_scaling():
-    """Verify rms_power scaling with identity beta."""
+    """Verify rms_power normalization with identity beta.
+
+    noisegen divides each channel by rms_power, so a larger rms_power
+    yields a smaller output rms.  Expect rms(w[:,0]) / rms(w[:,1])
+    = rms_power[1] / rms_power[0] = 3.
+    """
     M = 12
     noise = make_noise_struct(2)
     noise["beta"] = np.repeat(np.eye(M)[:, :, np.newaxis], 65, axis=2)
     rms = np.ones((M, 1))
-    rms[0] = 3
-    rms[1] = 1
+    rms[0] = 1
+    rms[1] = 3
     noise["rms_power"] = rms
 
     w = noisegen((500000, 2), FS, [0, 1], noise)
     rms_ratio = np.sqrt(np.mean(w[:, 0] ** 2)) / np.sqrt(np.mean(w[:, 1] ** 2))
 
-    assert abs(rms_ratio - 3) / 3 < 0.15, f"RMS ratio {rms_ratio:.2f}, expected ~3"
+    assert abs(rms_ratio - 3) / 3 < 0.01, f"RMS ratio {rms_ratio:.2f}, expected ~3"
 
 
 def test_option2_bandpass():
@@ -387,13 +392,17 @@ def test_option3_heavier_tail():
 
 
 def test_option3_rms_scaling():
-    """Verify rms_power scaling with identity beta."""
+    """Verify rms_power normalization with identity beta (impulsive case).
+
+    noisegen divides each channel by rms_power.  Expect rms ratio
+    = rms_power[1] / rms_power[0] = 4.
+    """
     M = 12
     noise = make_noise_struct(1.9)
     noise["beta"] = np.repeat(np.eye(M)[:, :, np.newaxis], 65, axis=2)
     rms = np.ones((M, 1))
-    rms[0] = 2
-    rms[1] = 0.5
+    rms[0] = 0.5
+    rms[1] = 2
     noise["rms_power"] = rms
 
     w = noisegen((500000, 2), FS, [0, 1], noise)

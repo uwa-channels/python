@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.signal as sg
 from fractions import Fraction
-from scipy.stats import levy_stable
+from scipy.stats import levy_stable  # noqa: F401  (kept for impulsive path)
 
 
 def noisegen(input_shape, fs, array_index=(0,), noise=None):
@@ -33,7 +33,10 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
           alpha     - Stability index (2 = Gaussian, <2 = impulsive).
           beta      - Mixing coefficients, shape (M, M, K).
           fc        - Center frequency [Hz].
-          rms_power - Per-channel RMS power scaling, shape (M, 1).
+          rms_power - Per-channel RMS (std) of the unscaled mixed+bandpassed
+                      noise, shape (M, 1).  Generation divides each output
+                      channel by this so each channel has unit power and the
+                      summed power equals M.
           version   - Noise struct version (>= 1.0).
 
     Returns
@@ -59,26 +62,49 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
 
     if noise is None:
         w = _noise_pink(input_shape, fs)
-    elif noise is not None:
+    else:
+        array_index = list(array_index)
+        _validate_inputs(input_shape, noise, array_index)
+
         Fs = float(noise["Fs"][0, 0])
         w = _noise_mixing(input_shape, fs, Fs, noise, array_index)
 
-        # Per-channel RMS power scaling
+        # Per-channel RMS power normalization
         if "rms_power" in noise:
             rms_power = np.asarray(noise["rms_power"]).ravel()
-            w = w * rms_power[list(array_index)]
+            w = w / rms_power[array_index]
 
-        # Bandpass filtering (zero-phase to match MATLAB's bandpass)
+        # Bandpass filtering
         fc = float(noise["fc"][0, 0])
         R = float(noise["R"][0, 0])
         fl = fc - R / 2 * 1.01
         fh = fc + R / 2 * 1.01
         sos = sg.butter(21, [fl, fh], btype="band", fs=fs, output="sos")
         w = sg.sosfiltfilt(sos, w, axis=0)
-    else:
-        raise ValueError("Wrong noise option.")
 
     return w
+
+
+def _validate_inputs(input_shape, noise, array_index):
+    version = float(np.asarray(noise["version"]).ravel()[0])
+    if version < 1.0:
+        raise ValueError(
+            f"The minimum version of the noise dict is 1.0, "
+            f"and you have {version}."
+        )
+    if len(set(array_index)) != len(array_index):
+        raise ValueError("array_index must contain unique entries.")
+    if len(input_shape) < 2 or input_shape[1] != len(array_index):
+        raise ValueError(
+            f"input_shape[1] ({input_shape[1]}) must equal "
+            f"len(array_index) ({len(array_index)})."
+        )
+    M = np.asarray(noise["beta"]).shape[0]
+    if max(array_index) >= M:
+        raise ValueError(
+            f"max(array_index) ({max(array_index)}) must be less than "
+            f"M ({M})."
+        )
 
 
 def _noise_pink(input_shape, fs):
@@ -102,12 +128,21 @@ def _noise_pink(input_shape, fs):
 
 
 def _noise_mixing(input_shape, fs, Fs, noise, array_index):
-    """Mixing-coefficient noise (Gaussian or impulsive via stabrnd/levy_stable)."""
+    """Mixing-coefficient noise (Gaussian or impulsive).
+
+    Time-domain mixing:
+        w[n, i] = sum_j sum_k beta[i, j, k] * z[n+k, j]
+    Implemented as one BLAS matmul per tap k, restricted to the requested
+    output rows.  Memory is O(K * M) for z and O(K * len(array_index)) for w;
+    no large FFT arrays are allocated.
+
+    For alpha = 2, z is generated as sqrt(2) * randn to match MATLAB
+    stabrnd's Box-Muller variant (Var[z] = 2).
+    """
     alpha = float(noise["alpha"][0, 0])
     beta = np.asarray(noise["beta"])
 
-    # Handle MATLAB-style (K, M, M) or Python-style (M, M, K)
-    # Ensure shape is (M, M, K)
+    # Ensure shape is (M, M, K): handle a MATLAB-style (K, M, M) layout.
     if beta.ndim == 3 and beta.shape[0] != beta.shape[1]:
         beta = np.transpose(beta, (1, 2, 0))
 
@@ -119,29 +154,16 @@ def _noise_mixing(input_shape, fs, Fs, noise, array_index):
     M = beta.shape[0]
     K_mix = beta.shape[2]
 
-    # Generate iid innovations
     if alpha == 2:
-        z = np.random.randn(K + K_mix, M)
+        z = np.sqrt(2.0) * np.random.randn(K + K_mix, M)
     else:
         z = levy_stable.rvs(alpha, 0, size=(K + K_mix, M))
 
-    # Apply mixing: w[n, i] = sum_j sum_k beta[i,j,k] * z[n+k, j]
-    # This is a cross-correlation of z[:,j] with beta[i,j,:].
-    # In frequency domain: W_i(f) = sum_j Z_j(f) * conj(B_{ij}(f))
-    from scipy.fft import next_fast_len, rfft, irfft
-
-    nfft = next_fast_len(K + K_mix)
-
-    # Forward FFT of innovation channels (M transforms, reused for all i)
-    Z = rfft(z[: K + K_mix, :], n=nfft, axis=0)  # (nfft//2+1, M)
-
-    # FFT of beta taps (short, cheap)
-    B = rfft(beta, n=nfft, axis=2)  # (M, M, nfft//2+1)
+    beta_sub = beta[array_index, :, :]   # (Nout, M, K_mix)
 
     w = np.zeros((K, len(array_index)))
-    for idx, i in enumerate(array_index):
-        W_i = np.sum(Z * np.conj(B[i, :, :].T), axis=1)  # (nfft//2+1,)
-        w[:, idx] = irfft(W_i, n=nfft)[:K]
+    for k in range(K_mix):
+        w += z[k:k + K, :] @ beta_sub[:, :, k].T
 
     w = sg.resample_poly(w, frac.numerator, frac.denominator, axis=0)
     w = w[: input_shape[0], :]
