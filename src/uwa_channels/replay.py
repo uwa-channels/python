@@ -130,7 +130,7 @@ def replay(input, fs, array_index, channel, start=None):
             output, frac_resample.numerator, frac_resample.denominator
         )
 
-    output *= M / np.sqrt(np.sum(pwr(output)))
+    output *= np.sqrt(M) / np.sqrt(np.sum(pwr(output)))
 
     return output
 
