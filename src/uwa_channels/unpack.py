@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import CubicSpline, PchipInterpolator
 import scipy.signal as sg
 from fractions import Fraction
 
@@ -49,6 +49,10 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     Revision history:
       - Apr.  1, 2025: Initial release.
       - Feb. 27, 2026: Fixed delay insertion for theta_hat vs phi_hat.
+      - Jun. 10, 2026: Removed global normalization; fixed spline extrapolation
+                       by clamping out-of-range values to zero; replaced
+                       resample with PchipInterpolator for phase and drift to
+                       eliminate FIR edge-effect ripples.
     """
 
     ## Parameters
@@ -113,35 +117,30 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
         dtype=complex,
     )
 
+    t_orig = np.arange(N_phi) / fs_delay
+
     for m in range(M):
         h_hat_m = np.squeeze(h_hat[:, m, :])
         h_resampled = sg.resample_poly(
             h_hat_m, frac_1.numerator, frac_1.denominator, axis=0
         )
+        t_new = np.arange(h_resampled.shape[0]) / fs
 
         if has_phase:
-            phase_resampled = sg.resample_poly(
-                phase_all[:, m], frac_2.numerator, frac_2.denominator, axis=0
-            )
+            phase_resampled = PchipInterpolator(t_orig, phase_all[:, m], extrapolate=True)(t_new)
             h_resampled = h_resampled * np.exp(1j * phase_resampled)[:, None]
 
         if has_drift:
-            drift_resampled = sg.resample_poly(
-                phase_drift[:, m], frac_2.numerator, frac_2.denominator, axis=0
-            )
+            drift_resampled = PchipInterpolator(t_orig, phase_drift[:, m], extrapolate=True)(t_new)
             drift = drift_resampled / (2 * np.pi * fc)
             for t in range(h_resampled.shape[0]):
-                h_re = CubicSpline(delays, np.real(h_resampled[t, :]))(
-                    delays + drift[t]
-                )
-                h_im = CubicSpline(delays, np.imag(h_resampled[t, :]))(
-                    delays + drift[t]
-                )
+                cs_re = CubicSpline(delays, np.real(h_resampled[t, :]), extrapolate=False)
+                h_re = np.nan_to_num(cs_re(delays + drift[t]), nan=0.0)
+                cs_im = CubicSpline(delays, np.imag(h_resampled[t, :]), extrapolate=False)
+                h_im = np.nan_to_num(cs_im(delays + drift[t]), nan=0.0)
                 h_resampled[t, :] = h_re + 1j * h_im
 
         unpacked_channel[:, m, :] = h_resampled.T
-
-    unpacked_channel /= np.max(np.abs(unpacked_channel))
 
     return unpacked_channel
 
