@@ -4,7 +4,7 @@ import scipy.signal as sg
 from fractions import Fraction
 
 
-def replay(input, fs, array_index, channel, start=None):
+def replay(input, fs, channel, start=None):
     """
     Simulate the replay of a passband signal through an underwater acoustic channel.
 
@@ -25,9 +25,6 @@ def replay(input, fs, array_index, channel, start=None):
 
     fs : float
         Sampling frequency of the input signal in Hz.
-
-    array_index : list of int
-        Indices of the array elements to simulate.
 
     channel : dict
         Dictionary containing channel characteristics. Expected keys:
@@ -55,18 +52,20 @@ def replay(input, fs, array_index, channel, start=None):
     Revision history:
       - Apr.  1, 2025: Initial release.
       - Feb. 27, 2026: Fixed delay insertion for theta_hat vs phi_hat.
+      - Jun. 10, 2026: Removed array_index parameter; function now uses all
+                       channels in channel.h_hat.
     """
 
     # Validate inputs
-    validate_inputs(input, fs, array_index, channel)
+    validate_inputs(input, fs, channel)
 
     # Unpacking variables
-    h_hat_real = np.array(channel["h_hat"]["real"])[:, array_index, :]
-    h_hat_imag = np.array(channel["h_hat"]["imag"])[:, array_index, :]
+    h_hat_real = np.array(channel["h_hat"]["real"])
+    h_hat_imag = np.array(channel["h_hat"]["imag"])
     fs_delay = channel["params"]["fs_delay"][0, 0]
     fs_time = channel["params"]["fs_time"][0, 0]
     fc = channel["params"]["fc"][0, 0]
-    M = len(array_index)
+    M = h_hat_real.shape[1]
     L = h_hat_real.shape[2]
 
     # Convert to baseband and resample the signal to fs_delay
@@ -98,7 +97,7 @@ def replay(input, fs, array_index, channel, start=None):
 
         if "phi_hat" in channel:
             # Delay tracking: phase + delay re-insertion
-            phi_hat = np.array(channel["phi_hat"])[:, array_index[m]]
+            phi_hat = np.array(channel["phi_hat"])[:, m]
             for t in np.arange(T + L - 1):
                 output[t, m] = (ir[t, :] @ baseband[t : t + L]) * np.exp(
                     1j * phi_hat[t + start]
@@ -107,7 +106,7 @@ def replay(input, fs, array_index, channel, start=None):
             output[:, m] = CubicSpline(signal_time, output[:, m])(signal_time + drift)
         elif "theta_hat" in channel:
             # Phase tracking only: no delay interpolation
-            theta_hat = np.array(channel["theta_hat"])[:, array_index[m]]
+            theta_hat = np.array(channel["theta_hat"])[:, m]
             for t in np.arange(T + L - 1):
                 output[t, m] = (ir[t, :] @ baseband[t : t + L]) * np.exp(
                     1j * theta_hat[t + start]
@@ -139,25 +138,19 @@ def pwr(x):
     return np.mean(np.abs(x) ** 2, axis=0)
 
 
-def validate_inputs(input, fs, array_index, channel):
+def validate_inputs(input, fs, channel):
     assert (
         channel["version"][0, 0] >= 1.0
     ), f"The minimum version of the channel matrix is 1.0, and you have {channel['version']:.1f}."
 
-    T = input.shape[0]
-    T = T / fs
-    T_max, N, _ = channel["h_hat"]["real"].shape
-    T_max = T_max / channel["params"]["fs_time"][0, 0]
+    T = input.shape[0] / fs
+    T_max = channel["h_hat"]["real"].shape[0] / channel["params"]["fs_time"][0, 0]
 
     assert (
         T < T_max
     ), f"Duration of the input signal, {T * 1e3:.2f}ms, should be no larger than {T_max * 1e3:.2f}ms."
 
-    assert len(set(array_index)) == len(array_index), "index contains duplicate values."
-    assert (
-        max(array_index) <= N
-    ), f"array_index must be positive integers and cannot exceed {N}."
-    assert input.ndim == 1, "The maximum supported number of channels is 1."
+    assert input.ndim == 1, "input must be a 1-D array."
 
 
 # [EOF]

@@ -77,6 +77,7 @@ def build_channel(p):
     v_const = p["v_const"]
     v_amp = p["v_amp"]
     n_cycles = p["n_cycles"]
+    has_f_resamp = p.get("has_f_resamp", False)
 
     # Cumulative delay at snapshot times
     dtau_snap = (v_const / C) * t_snapshots
@@ -84,22 +85,28 @@ def build_channel(p):
         omega_osc = 2 * np.pi * n_cycles / T_ch
         dtau_snap -= v_amp / (C * omega_osc) * (np.cos(omega_osc * t_snapshots) - 1)
 
-    # Cumulative phase at fs_delay rate
+    # Cumulative phase at fs_delay rate (split into constant and sway parts)
     phi = -2 * np.pi * p["fc"] * (v_const / C) * t_delay
+    phi_sin = np.zeros_like(t_delay)
     if n_cycles > 0:
-        phi += (
-            p["fc"] * v_amp * T_ch / (C * n_cycles) * (np.cos(omega_osc * t_delay) - 1)
-        )
+        phi_sin = p["fc"] * v_amp * T_ch / (C * n_cycles) * (np.cos(omega_osc * t_delay) - 1)
+        phi = phi + phi_sin
 
     # Build h_hat
     L = int(np.ceil(p["fs_delay"] * p["Tmp"] * 1.5))
     has_motion = (v_const != 0) or (v_amp != 0)
 
+    # With f_resamp, bulk drift from v_const is absorbed by resampling;
+    # h_hat drifts only with the residual sway.
+    dtau_h = dtau_snap.copy()
+    if has_f_resamp:
+        dtau_h = dtau_snap - (v_const / C) * t_snapshots
+
     if p["tracking"] == "theta" and has_motion:
         h_hat = np.zeros((N_time, p["M"], L), dtype=complex)
         for k in range(N_time):
             h_hat[k, :, :] = place_taps(
-                L, p["M"], path_delay_0 + dtau_snap[k], c_p, p["Tmp"], p["fs_delay"]
+                L, p["M"], path_delay_0 + dtau_h[k], c_p, p["Tmp"], p["fs_delay"]
             )
     else:
         h_hat_static = place_taps(L, p["M"], path_delay_0, c_p, p["Tmp"], p["fs_delay"])
@@ -116,17 +123,22 @@ def build_channel(p):
         "version": np.array([[1.0]]),
     }
 
-    phi_2d = np.tile(phi[:, None], (1, p["M"]))
+    # When f_resamp is present, tracking fields carry only the residual phase.
+    phi_tracking = phi_sin if has_f_resamp else phi
+    phi_2d = np.tile(phi_tracking[:, None], (1, p["M"]))
     if p["tracking"] == "theta":
         channel["theta_hat"] = phi_2d
     elif p["tracking"] == "phi":
         channel["phi_hat"] = phi_2d
 
-    return channel, path_delay_0, path_gain, phi, has_motion, t_snapshots, L
+    if has_f_resamp:
+        channel["f_resamp"] = np.array([[1.0 / (1.0 + v_const / C)]])
+
+    return channel, path_delay_0, path_gain, phi, has_motion, t_snapshots, t_delay, L
 
 
 # =========================================================================
-#  Test parameters — matches MATLAB testReplay.m exactly
+#  Test parameters
 # =========================================================================
 
 PARAMS = [
@@ -375,6 +387,61 @@ PARAMS = [
         "v_amp": 1.2,
         "n_cycles": 3,
     },
+    # Watermark (f_resamp)
+    {
+        "label": "watermark_f_resamp_only",
+        "fc": 15e3,
+        "fs_delay": 16e3,
+        "fs_time": 20,
+        "M": 3,
+        "n_path": 10,
+        "R": 4e3,
+        "Tmp": 20e-3,
+        "coeff": 1,
+        "d": 0.5,
+        "channel_time": 5,
+        "tracking": "none",
+        "has_f_resamp": True,
+        "v_const": 2,
+        "v_amp": 0,
+        "n_cycles": 0,
+    },
+    {
+        "label": "watermark_f_resamp_theta",
+        "fc": 15e3,
+        "fs_delay": 16e3,
+        "fs_time": 100,
+        "M": 3,
+        "n_path": 10,
+        "R": 4e3,
+        "Tmp": 20e-3,
+        "coeff": 1,
+        "d": 0.5,
+        "channel_time": 5,
+        "tracking": "theta",
+        "has_f_resamp": True,
+        "v_const": 2,
+        "v_amp": 1,
+        "n_cycles": 3,
+    },
+    {
+        "label": "watermark_f_resamp_phi",
+        "fc": 15e3,
+        "fs_delay": 16e3,
+        "fs_time": 20,
+        "M": 3,
+        "n_path": 10,
+        "R": 4e3,
+        "Tmp": 20e-3,
+        "coeff": 1,
+        "d": 0.5,
+        "channel_time": 5,
+        "tracking": "phi",
+        "has_f_resamp": True,
+        "v_const": 2,
+        "v_amp": -1,
+        "n_cycles": 3,
+    },
 ]
 
 
@@ -384,13 +451,20 @@ def test_replay_function(params):
     fs = FS
     start = START
 
-    channel, path_delay_0, path_gain, phi, has_motion, t_snapshots, L = build_channel(p)
+    channel, path_delay_0, path_gain, phi, has_motion, t_snapshots, t_delay, L = build_channel(p)
 
     # Get phase field for compensation
     if p["tracking"] == "theta":
         phi_field = channel["theta_hat"]
-    else:
+    elif p["tracking"] == "phi":
         phi_field = channel["phi_hat"]
+    else:
+        phi_field = np.zeros((len(t_delay), p["M"]))
+
+    if p.get("has_f_resamp", False):
+        f_resamp_val = channel["f_resamp"][0, 0]
+        ramp = (1.0 / f_resamp_val - 1) * 2 * np.pi * p["fc"] * t_delay
+        phi_field = phi_field + ramp[:, None]
 
     # Transmit signal
     data_symbols = np.random.randint(2, size=(4095,)) * 2 - 1
@@ -403,7 +477,7 @@ def test_replay_function(params):
     )
 
     # Replay
-    r = replay(input_signal, fs, list(range(p["M"])), channel, start)
+    r = replay(input_signal, fs, channel, start)
 
     # h_hat for plotting
     h_hat_complex = np.array(channel["h_hat"]["real"]) + 1j * np.array(
@@ -506,24 +580,22 @@ def test_replay_function(params):
                 xaxis[peaks], xcor_win[peaks], "x", color=f"C{m}", markersize=10
             )
 
+        # Criterion: gain-weighted delay error against ground truth.
+        # Weighting both sides by the TRUE path gains keeps the metric a
+        # pure delay-fidelity test. Peak heights from a random binary
+        # probe carry sidelobe noise of about 1/sqrt(4095) per path,
+        # which is a property of the probe, not of replay; folding the
+        # estimated gains into the criterion lets that noise dominate
+        # for dense channels (e.g. the watermark cases).
         n_found = len(peaks)
-        if n_found > 0:
-            est_delays = lags_win[peaks] / fs
-            est_gains = xcor_win[peaks]
-            idx_e = np.argsort(est_delays)
-            idx_t = np.argsort(path_delay_0[:, m])
+        if n_found == p["n_path"]:
+            est_delays = np.sort(lags_win[peaks] / fs)
+            true_delays = np.sort(path_delay_0[:, m])
+            true_gains = path_gain[np.argsort(path_delay_0[:, m]), m]
 
-            n_compare = min(n_found, p["n_path"])
             tol = 2e-4 * p["n_path"]
             criteria[m] = (
-                np.abs(
-                    np.sum(est_delays[idx_e[:n_compare]] * est_gains[idx_e[:n_compare]])
-                    - np.sum(
-                        path_delay_0[idx_t[:n_compare], m]
-                        * path_gain[idx_t[:n_compare], m]
-                    )
-                )
-                < tol
+                np.sum(np.abs(est_delays - true_delays) * true_gains) < tol
             )
 
     ax_xcor.set_xlabel("Delay [ms]")
@@ -556,11 +628,10 @@ def test_replay_basic():
         },
         "version": np.array([[1.0]]),
     }
-    array_index = [0, 1]
     input_signal = np.random.randn(1024)
-    output = replay(input_signal, fs, array_index, channel)
+    output = replay(input_signal, fs, channel)
 
-    assert output.shape[1] == len(array_index)
+    assert output.shape[1] == 5  # all channels in h_hat
     assert output.shape[0] > 0
     assert np.isfinite(output).all()
 
