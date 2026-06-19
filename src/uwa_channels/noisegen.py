@@ -31,12 +31,13 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
           Fs        - Sampling rate at which statistics were measured [Hz].
           R         - Signal bandwidth [Hz].
           alpha     - Stability index (2 = Gaussian, <2 = impulsive).
-          beta      - Mixing coefficients, shape (M, M, K).
+          beta      - Mixing coefficients, shape (M, M, K).  Normalized so
+                      each channel carries unit pseudo-power (2*c^2, the
+                      alpha-stable scale measure that reduces to the variance
+                      when alpha = 2); the pseudo-powers summed over channels
+                      equal the channel count M.  beta also encodes the
+                      bandpass spectral shaping.
           fc        - Center frequency [Hz].
-          rms_power - Per-channel RMS (std) of the unscaled mixed+bandpassed
-                      noise, shape (M, 1).  Generation divides each output
-                      channel by this so each channel has unit power and the
-                      summed power equals M.
           version   - Noise struct version (>= 1.0).
 
     Returns
@@ -68,19 +69,6 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
 
         Fs = float(noise["Fs"][0, 0])
         w = _noise_mixing(input_shape, fs, Fs, noise, array_index)
-
-        # Per-channel RMS power normalization
-        if "rms_power" in noise:
-            rms_power = np.asarray(noise["rms_power"]).ravel()
-            w = w / rms_power[array_index]
-
-        # Bandpass filtering
-        fc = float(noise["fc"][0, 0])
-        R = float(noise["R"][0, 0])
-        fl = fc - R / 2 * 1.01
-        fh = fc + R / 2 * 1.01
-        sos = sg.butter(21, [fl, fh], btype="band", fs=fs, output="sos")
-        w = sg.sosfiltfilt(sos, w, axis=0)
 
     return w
 
@@ -136,8 +124,10 @@ def _noise_mixing(input_shape, fs, Fs, noise, array_index):
     output rows.  Memory is O(K * M) for z and O(K * len(array_index)) for w;
     no large FFT arrays are allocated.
 
-    For alpha = 2, z is generated as sqrt(2) * randn to match MATLAB
-    stabrnd's Box-Muller variant (Var[z] = 2).
+    The driver z has unit pseudo-power: for alpha = 2 it is standard Gaussian
+    (Var[z] = 1); for alpha < 2 it is SaS with scale 1/sqrt(2) (matching
+    MATLAB stabrnd's c = 1/sqrt(2)).  Per-channel scaling is carried entirely
+    by the (normalized) mixing coefficients beta.
     """
     alpha = float(noise["alpha"][0, 0])
     beta = np.asarray(noise["beta"])
@@ -155,9 +145,9 @@ def _noise_mixing(input_shape, fs, Fs, noise, array_index):
     K_mix = beta.shape[2]
 
     if alpha == 2:
-        z = np.sqrt(2.0) * np.random.randn(K + K_mix, M)
+        z = np.random.randn(K + K_mix, M)
     else:
-        z = levy_stable.rvs(alpha, 0, size=(K + K_mix, M))
+        z = levy_stable.rvs(alpha, 0, scale=1.0 / np.sqrt(2), size=(K + K_mix, M))
 
     beta_sub = beta[array_index, :, :]   # (Nout, M, K_mix)
 
