@@ -395,7 +395,7 @@ def test_unpack_function(params):
 
     fig.suptitle(p["label"])
     fig.tight_layout()
-    plt.savefig(f"fig_unpack_{p['label']}.png", dpi=150)
+    plt.savefig(f"test_unpack_{p['label']}.png", dpi=150)
     plt.close(fig)
 
 

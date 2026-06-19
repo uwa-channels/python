@@ -165,7 +165,7 @@ def test_option1_spectral_slope():
     axes[1].set_title("Amplitude distribution")
 
     fig.tight_layout()
-    plt.savefig("fig_noise_option1_psd.png", dpi=150)
+    plt.savefig("test_noise_option1_psd.png", dpi=150)
     plt.close(fig)
 
     assert (
@@ -242,7 +242,7 @@ def test_option2_spatial_correlation():
     err = np.max(np.abs(C_sample - C_theory))
     fig.suptitle(f"Gaussian mixing: max |error| = {err:.4f}")
     fig.tight_layout()
-    plt.savefig("fig_noise_option2_correlation.png", dpi=150)
+    plt.savefig("test_noise_option2_correlation.png", dpi=150)
     plt.close(fig)
 
     assert err < 0.05, f"Correlation mismatch: max |error| = {err:.4f}"
@@ -320,7 +320,7 @@ def test_option2_bandpass():
     ax.set_title(f"Gaussian bandpass: fc={fc/1e3:.0f} kHz, R={R/1e3:.1f} kHz")
     ax.grid(True)
     fig.tight_layout()
-    plt.savefig("fig_noise_option2_bandpass.png", dpi=150)
+    plt.savefig("test_noise_option2_bandpass.png", dpi=150)
     plt.close(fig)
 
     rejection = psd_in - psd_out
@@ -342,7 +342,7 @@ def test_option2_gaussianity():
     ax.set_ylabel("PDF")
     ax.set_title(f"Gaussianity check (kurtosis = {k:.2f})")
     fig.tight_layout()
-    plt.savefig("fig_noise_option2_gaussianity.png", dpi=150)
+    plt.savefig("test_noise_option2_gaussianity.png", dpi=150)
     plt.close(fig)
 
     assert abs(k - 3) / 3 < 0.15, f"Kurtosis {k:.2f}, expected ~3 for Gaussian"
@@ -389,7 +389,7 @@ def test_option3_heavier_tail():
     ax.set_title("Tail comparison")
     ax.legend()
     fig.tight_layout()
-    plt.savefig("fig_noise_option3_tails.png", dpi=150)
+    plt.savefig("test_noise_option3_tails.png", dpi=150)
     plt.close(fig)
 
     k_heavy = _kurtosis(w_heavy[:, 0])
@@ -452,7 +452,7 @@ def test_option3_bandpass():
     ax.set_title(f"Impulsive bandpass: fc={fc/1e3:.0f} kHz, R={R/1e3:.1f} kHz")
     ax.grid(True)
     fig.tight_layout()
-    plt.savefig("fig_noise_option3_bandpass.png", dpi=150)
+    plt.savefig("test_noise_option3_bandpass.png", dpi=150)
     plt.close(fig)
 
     rejection = psd_in - psd_out
@@ -535,7 +535,7 @@ def test_option3_spatial_correlation():
 
     fig.suptitle(f"Impulsive (α={float(noise['alpha'][0, 0])}) spatial correlation")
     fig.tight_layout()
-    plt.savefig("fig_noise_option3_correlation.png", dpi=150)
+    plt.savefig("test_noise_option3_correlation.png", dpi=150)
     plt.close(fig)
 
     # Structural checks (Spearman is the robust metric)

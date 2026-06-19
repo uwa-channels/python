@@ -607,7 +607,7 @@ def test_replay_function(params):
     result = "PASSED" if np.all(criteria) else "FAILED"
     fig.suptitle(f"{p['label']}: {result}")
     fig.tight_layout()
-    plt.savefig(f"fig_{p['label']}.png", dpi=150)
+    plt.savefig(f"test_replay_{p['label']}.png", dpi=150)
     plt.close(fig)
 
     assert np.all(criteria), f"Peak delay mismatch for case: {p['label']}"
