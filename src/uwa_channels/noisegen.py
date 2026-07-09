@@ -59,6 +59,9 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
       - Apr.  1, 2025: Initial release.
       - Feb. 27, 2026: Fixed spectrum mirror and np.astype usage.
       - Mar.  9, 2026: Unified noise dict.  Removed Cholesky path.
+      - Jul.  8, 2026: Vectorized pink noise generation; the per-channel
+                       convolution loop is replaced by a single FFT
+                       convolution across all channels.  Output is unchanged.
     """
 
     if noise is None:
@@ -110,8 +113,10 @@ def _noise_pink(input_shape, fs):
     h = np.real(np.fft.fftshift(np.fft.ifft(H)))
     h /= np.sqrt(np.sum(h**2))
     w = np.random.randn(input_shape[0], input_shape[1])
-    for m in range(input_shape[1]):
-        w[:, m] = sg.fftconvolve(w[:, m], h, "same")
+    # Column-wise 'same' FIR convolution via a single FFT convolution across
+    # all channels, avoiding the per-sample time-domain cost of the long
+    # (length(h) ~ 2*nfft) filter and the per-channel Python loop.
+    w = sg.fftconvolve(w, h[:, None], mode="same", axes=0)
     return w
 
 

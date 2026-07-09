@@ -54,6 +54,9 @@ def replay(input, fs, channel, start=None):
       - Feb. 27, 2026: Fixed delay insertion for theta_hat vs phi_hat.
       - Jun. 10, 2026: Removed array_index parameter; function now uses all
                        channels in channel.h_hat.
+      - Jul.  7, 2026: Removed output normalization; power is now carried by
+                       the CIR coefficients h_hat.  Added a sqrt(2) factor to
+                       the real passband upshift.
     """
 
     # Validate inputs
@@ -86,6 +89,12 @@ def replay(input, fs, channel, start=None):
     output = np.zeros((T + L, M), dtype=complex)
     channel_time = np.arange(h_hat_real.shape[0]) / fs_time
     signal_time = np.arange(start, start + T + L) / fs_delay
+
+    # Sliding windows of baseband: row t is baseband[t : t+L]. This does not
+    # depend on the array element, so build it once outside the loop.
+    ntc = T + L - 1
+    bw = np.lib.stride_tricks.sliding_window_view(baseband, L)[:ntc]  # (ntc, L)
+
     for m in range(M):
         ir_real = CubicSpline(channel_time, np.squeeze(h_hat_real[:, m, ::-1]))(
             signal_time
@@ -95,30 +104,27 @@ def replay(input, fs, channel, start=None):
         )
         ir = ir_real + 1j * ir_imag
 
+        # Time-varying convolution, all output samples at once:
+        # conv[t] = ir[t, :] @ baseband[t : t + L]
+        conv = np.einsum("tl,tl->t", ir[:ntc], bw)
+
         if "phi_hat" in channel:
             # Delay tracking: phase + delay re-insertion
             phi_hat = np.array(channel["phi_hat"])[:, m]
-            for t in np.arange(T + L - 1):
-                output[t, m] = (ir[t, :] @ baseband[t : t + L]) * np.exp(
-                    1j * phi_hat[t + start]
-                )
+            output[:ntc, m] = conv * np.exp(1j * phi_hat[start : start + ntc])
             drift = phi_hat[np.arange(start, start + T + L)] / (2 * np.pi * fc)
             output[:, m] = CubicSpline(signal_time, output[:, m])(signal_time + drift)
         elif "theta_hat" in channel:
             # Phase tracking only: no delay interpolation
             theta_hat = np.array(channel["theta_hat"])[:, m]
-            for t in np.arange(T + L - 1):
-                output[t, m] = (ir[t, :] @ baseband[t : t + L]) * np.exp(
-                    1j * theta_hat[t + start]
-                )
+            output[:ntc, m] = conv * np.exp(1j * theta_hat[start : start + ntc])
         else:
             # No tracking: pure convolution
-            for t in np.arange(T + L - 1):
-                output[t, m] = ir[t, :] @ baseband[t : t + L]
+            output[:ntc, m] = conv
 
     # Resample to match the original sampling rate and upshift to fc
     output = sg.resample_poly(output, frac.denominator, frac.numerator)
-    output = np.real(
+    output = np.sqrt(2) * np.real(
         output * np.exp(2j * np.pi * fc * np.arange(len(output))[:, None] / fs)
     )
 
@@ -129,13 +135,7 @@ def replay(input, fs, channel, start=None):
             output, frac_resample.numerator, frac_resample.denominator
         )
 
-    output *= np.sqrt(M) / np.sqrt(np.sum(pwr(output)))
-
     return output
-
-
-def pwr(x):
-    return np.mean(np.abs(x) ** 2, axis=0)
 
 
 def validate_inputs(input, fs, channel):

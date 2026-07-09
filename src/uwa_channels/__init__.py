@@ -1,5 +1,5 @@
-from .replay import replay, pwr
+from .replay import replay
 from .unpack import unpack
 from .noisegen import noisegen
 
-__all__ = ["replay", "pwr", "unpack", "noisegen"]
+__all__ = ["replay", "unpack", "noisegen"]
