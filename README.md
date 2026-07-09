@@ -1,6 +1,8 @@
 [![CI](https://github.com/uwa-channels/python/actions/workflows/ci.yaml/badge.svg)](https://github.com/uwa-channels/python/actions/workflows/ci.yaml)
 [![codecov](https://codecov.io/gh/uwa-channels/python/graph/badge.svg?token=0VK4040WNU)](https://codecov.io/gh/uwa-channels/python)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19643731.svg)](https://doi.org/10.5281/zenodo.19643731)
+[![PyPI Version](https://img.shields.io/pypi/v/uwa_channels?labelColor=green&color=blue)](https://pypi.org/project/uwa-channels/)
+
 
 # Underwater Acoustic Channel Toolbox — Python
 
@@ -37,8 +39,8 @@ from uwa_channels import replay, noisegen
 channel = h5py.File("blue_1.mat", "r")
 noise = h5py.File("blue_1_noise.mat", "r")
 
-y = replay(input, fs, array_index, channel)
-w = noisegen(y.shape, fs, array_index, noise)
+y = replay(input, fs, channel)
+w = noisegen(y.shape, fs, noise)
 r = y + 0.05 * w
 ```
 
