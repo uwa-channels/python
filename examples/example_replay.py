@@ -29,8 +29,8 @@ if __name__ == "__main__":
     )
 
     ## Replay and generate noise
-    output = replay(input, fs, array_index, channel)
-    # output = replay(input, fs, array_index, channel, start=1000)
+    output = replay(input, fs, channel)[:, array_index]
+    # output = replay(input, fs, channel, start=1000)[:, array_index]
 
     ## Add the noise
     if textbook_noise:
