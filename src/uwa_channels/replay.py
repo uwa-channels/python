@@ -4,7 +4,7 @@ import scipy.signal as sg
 from fractions import Fraction
 
 
-def replay(input, fs, channel, start=None):
+def replay(input, fs, array_index, channel, start=None):
     """
     Simulate the replay of a passband signal through an underwater acoustic channel.
 
@@ -25,6 +25,9 @@ def replay(input, fs, channel, start=None):
 
     fs : float
         Sampling frequency of the input signal in Hz.
+
+    array_index : array_like of int
+        Indices of the hydrophone channels to replay through.
 
     channel : dict
         Dictionary containing channel characteristics. Expected keys:
@@ -52,15 +55,13 @@ def replay(input, fs, channel, start=None):
     Revision history:
       - Apr.  1, 2025: Initial release.
       - Feb. 27, 2026: Fixed delay insertion for theta_hat vs phi_hat.
-      - Jun. 10, 2026: Removed array_index parameter; function now uses all
-                       channels in channel.h_hat.
       - Jul.  7, 2026: Removed output normalization; power is now carried by
-                       the CIR coefficients h_hat.  Added a sqrt(2) factor to
-                       the real passband upshift.
+                       the CIR coefficients h_hat.
     """
 
     # Validate inputs
-    validate_inputs(input, fs, channel)
+    array_index = np.atleast_1d(array_index)
+    validate_inputs(input, fs, array_index, channel)
 
     # Unpacking variables
     h_hat_real = np.array(channel["h_hat"]["real"])
@@ -68,7 +69,7 @@ def replay(input, fs, channel, start=None):
     fs_delay = channel["params"]["fs_delay"][0, 0]
     fs_time = channel["params"]["fs_time"][0, 0]
     fc = channel["params"]["fc"][0, 0]
-    M = h_hat_real.shape[1]
+    M = len(array_index)
     L = h_hat_real.shape[2]
 
     # Convert to baseband and resample the signal to fs_delay
@@ -81,7 +82,6 @@ def replay(input, fs, channel, start=None):
     T_max = h_hat_real.shape[0] / fs_time * fs_delay * 1.0
     if start is None:
         start = np.random.randint(low=0, high=T_max - T - L)
-    print(f"Start = {start}")
 
     # Convolution
     buffer = np.zeros((L - 1,))
@@ -96,11 +96,23 @@ def replay(input, fs, channel, start=None):
     bw = np.lib.stride_tricks.sliding_window_view(baseband, L)[:ntc]  # (ntc, L)
 
     for m in range(M):
-        ir_real = CubicSpline(channel_time, np.squeeze(h_hat_real[:, m, ::-1]))(
-            signal_time
+        # Disable extrapolation (fill out-of-domain samples with 0), matching
+        # interp1(..., 'spline', 0) in the MATLAB implementation.
+        ir_real = np.nan_to_num(
+            CubicSpline(
+                channel_time,
+                np.squeeze(h_hat_real[:, array_index[m], ::-1]),
+                extrapolate=False,
+            )(signal_time),
+            nan=0.0,
         )
-        ir_imag = CubicSpline(channel_time, np.squeeze(h_hat_imag[:, m, ::-1]))(
-            signal_time
+        ir_imag = np.nan_to_num(
+            CubicSpline(
+                channel_time,
+                np.squeeze(h_hat_imag[:, array_index[m], ::-1]),
+                extrapolate=False,
+            )(signal_time),
+            nan=0.0,
         )
         ir = ir_real + 1j * ir_imag
 
@@ -110,13 +122,18 @@ def replay(input, fs, channel, start=None):
 
         if "phi_hat" in channel:
             # Delay tracking: phase + delay re-insertion
-            phi_hat = np.array(channel["phi_hat"])[:, m]
+            phi_hat = np.array(channel["phi_hat"])[:, array_index[m]]
             output[:ntc, m] = conv * np.exp(1j * phi_hat[start : start + ntc])
             drift = phi_hat[np.arange(start, start + T + L)] / (2 * np.pi * fc)
-            output[:, m] = CubicSpline(signal_time, output[:, m])(signal_time + drift)
+            # Disable extrapolation (fill out-of-domain samples with 0), matching
+            # interp1(..., 'spline', 0) in the MATLAB implementation.
+            interp = CubicSpline(signal_time, output[:, m], extrapolate=False)(
+                signal_time + drift
+            )
+            output[:, m] = np.nan_to_num(interp, nan=0.0)
         elif "theta_hat" in channel:
             # Phase tracking only: no delay interpolation
-            theta_hat = np.array(channel["theta_hat"])[:, m]
+            theta_hat = np.array(channel["theta_hat"])[:, array_index[m]]
             output[:ntc, m] = conv * np.exp(1j * theta_hat[start : start + ntc])
         else:
             # No tracking: pure convolution
@@ -124,7 +141,7 @@ def replay(input, fs, channel, start=None):
 
     # Resample to match the original sampling rate and upshift to fc
     output = sg.resample_poly(output, frac.denominator, frac.numerator)
-    output = np.sqrt(2) * np.real(
+    output = 2 * np.real(
         output * np.exp(2j * np.pi * fc * np.arange(len(output))[:, None] / fs)
     )
 
@@ -138,7 +155,7 @@ def replay(input, fs, channel, start=None):
     return output
 
 
-def validate_inputs(input, fs, channel):
+def validate_inputs(input, fs, array_index, channel):
     assert (
         channel["version"][0, 0] >= 1.0
     ), f"The minimum version of the channel matrix is 1.0, and you have {channel['version']:.1f}."
@@ -151,6 +168,16 @@ def validate_inputs(input, fs, channel):
     ), f"Duration of the input signal, {T * 1e3:.2f}ms, should be no larger than {T_max * 1e3:.2f}ms."
 
     assert input.ndim == 1, "input must be a 1-D array."
+
+    # Check the hydrophone indices
+    N = channel["h_hat"]["real"].shape[1]
+    array_index = np.asarray(array_index)
+    assert len(np.unique(array_index)) == len(
+        array_index
+    ), "array_index must not contain duplicate indices."
+    assert (
+        array_index.min() >= 0 and array_index.max() < N
+    ), f"array_index must be valid channel indices in [0, {N})."
 
 
 # [EOF]

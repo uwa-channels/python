@@ -477,7 +477,7 @@ def test_replay_function(params):
     )
 
     # Replay
-    r = replay(input_signal, fs, channel, start)
+    r = replay(input_signal, fs, np.arange(p["M"]), channel, start)
 
     # h_hat for plotting
     h_hat_complex = np.array(channel["h_hat"]["real"]) + 1j * np.array(
@@ -629,11 +629,96 @@ def test_replay_basic():
         "version": np.array([[1.0]]),
     }
     input_signal = np.random.randn(1024)
-    output = replay(input_signal, fs, channel)
+    output = replay(input_signal, fs, np.arange(5), channel)
 
     assert output.shape[1] == 5  # all channels in h_hat
     assert output.shape[0] > 0
     assert np.isfinite(output).all()
+
+
+def test_replay_power():
+    """Two checks for the array_index API:
+
+    1. Isolation: replaying through a single hydrophone must equal the
+       corresponding column of a replay through all hydrophones (same
+       start). This holds only because output normalization was removed,
+       so each channel is processed independently of the selected set.
+    2. Power: after normalizing the channel so the average per-channel
+       energy is 1 (cf. calib), a unit-variance passband input replays to
+       an output whose per-channel variance is O(1).
+    """
+    fs = FS
+    start = START
+
+    fc = 12e3
+    fs_delay = 10e3
+    fs_time = 20
+    M = 4
+    n_path = 8
+    R = 4e3
+    Tmp = 15e-3
+    coeff = 1.5
+    d = 0.5
+    T_ch = 5
+
+    # Multipath geometry (static channel)
+    path_delay_0 = np.concatenate(
+        ([0], np.sort(randsamples(np.arange(1, Tmp * 1e3) / 1e3, n_path - 1)))
+    )[:, None]
+    incremental_delay = np.arange(M)[None, :] * d / C
+    path_delay_0 = path_delay_0 + incremental_delay
+    path_delay_0 -= np.min(path_delay_0)
+    path_gain = np.exp(-path_delay_0 * coeff / Tmp)
+    c_p = path_gain * np.exp(-1j * 2 * np.pi * fc * path_delay_0)
+
+    L = int(np.ceil(fs_delay * Tmp * 1.5))
+    N_time = round(T_ch * fs_time)
+    h_hat_static = place_taps(L, M, path_delay_0, c_p, Tmp, fs_delay)
+    h_hat = np.tile(h_hat_static[None, :, :], (N_time, 1, 1))
+
+    # Normalize so the average per-channel energy is 1 (cf. calib)
+    T = h_hat.shape[0]
+    E_tot_avg = np.sum(np.abs(h_hat) ** 2) / T
+    alpha = np.sqrt(M / E_tot_avg)
+    h_hat = alpha * h_hat
+
+    channel = {
+        "h_hat": {"real": np.real(h_hat), "imag": np.imag(h_hat)},
+        "params": {
+            "fs_delay": np.array([[fs_delay]]),
+            "fs_time": np.array([[fs_time]]),
+            "fc": np.array([[fc]]),
+        },
+        "version": np.array([[1.0]]),
+    }
+
+    # Unit-variance passband probe
+    data_symbols = np.random.randint(2, size=(8192,)) * 2 - 1
+    baseband = sg.resample_poly(data_symbols, int(fs / R), 1)
+    passband = np.real(
+        baseband * np.exp(2j * np.pi * fc * np.arange(len(baseband)) / fs)
+    )
+    passband = passband / np.std(passband)
+
+    # Replay one channel, and all channels, with the same start
+    target_ch = 2
+    r_single = replay(passband, fs, [target_ch], channel, start)
+    r_all = replay(passband, fs, np.arange(M), channel, start)
+
+    # Check 1: isolation
+    n = min(r_single.shape[0], r_all.shape[0])
+    ref = r_all[:n, target_ch]
+    err = np.max(np.abs(r_single[:n, 0] - ref)) / np.max(np.abs(ref))
+    assert err < 1e-10, (
+        f"Single-channel replay does not match column {target_ch} of the "
+        f"full replay (relative err = {err:.2e})."
+    )
+
+    # Check 2: per-channel output power is O(1)
+    mean_var = np.mean(np.var(r_all, axis=0))
+    print(f"test_replay_power: per-channel output power mean = {mean_var:.3f}")
+    assert mean_var > 0.93, f"Mean output power {mean_var:.3f} is unexpectedly small."
+    assert mean_var < 1.07, f"Mean output power {mean_var:.3f} is unexpectedly large."
 
 
 if __name__ == "__main__":

@@ -39,8 +39,9 @@ from uwa_channels import replay, noisegen
 channel = h5py.File("blue_1.mat", "r")
 noise = h5py.File("blue_1_noise.mat", "r")
 
-y = replay(input, fs, channel)
-w = noisegen(y.shape, fs, noise)
+array_index = [0, 1, 2]
+y = replay(input, fs, array_index, channel)
+w = noisegen(y.shape, fs, array_index, noise)
 r = y + 0.05 * w
 ```
 
@@ -88,7 +89,7 @@ This repository includes automated testing via [GitHub Actions](https://github.c
 
 | Test | What it verifies |
 |------|-----------------|
-| `test_replay` | Generates random mobile channels ({static, mobile} × {theta\_hat, phi\_hat}), transmits a signal, and checks that cross-correlation peaks match the true multipath structure. |
+| `test_replay` | Generates random mobile channels ({static, mobile} × {theta\_hat, phi\_hat}), transmits a signal, and checks that cross-correlation peaks match the true multipath structure; also checks that `array_index` isolates individual hydrophones and that the output power scaling is O(1). |
 | `test_noisegen` | Verifies output size, spectral shape (17 dB/decade), spatial correlation (theoretical vs. sample), bandpass filtering, rms\_power scaling, Gaussianity (α = 2), and heavy-tail behavior (α < 2). |
 | `test_unpack` | Tests all tracking modes (none, theta\_hat, phi\_hat, f\_resamp, and combinations) for correct impulse response reconstruction. |
 
