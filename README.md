@@ -28,7 +28,7 @@ pip install uwa-channels
 
 ## Quick start
 
-Download the channel MAT-files from [here](https://zenodo.org/records/19643731) and place them in your working directory.
+Download the channel MAT-files from [Zenodo](https://doi.org/10.5281/zenodo.21287414) and place them in your working directory.
 
 ### Replay and noise generation
 
