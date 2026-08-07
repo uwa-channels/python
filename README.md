@@ -1,6 +1,6 @@
 [![CI](https://github.com/uwa-channels/python/actions/workflows/ci.yaml/badge.svg)](https://github.com/uwa-channels/python/actions/workflows/ci.yaml)
 [![codecov](https://codecov.io/gh/uwa-channels/python/graph/badge.svg?token=0VK4040WNU)](https://codecov.io/gh/uwa-channels/python)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21287414.svg)](https://doi.org/10.5281/zenodo.21287414)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.21287414-1682D4?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.21287414)
 [![PyPI Version](https://img.shields.io/pypi/v/uwa_channels?labelColor=green&color=blue)](https://pypi.org/project/uwa-channels/)
 
 
