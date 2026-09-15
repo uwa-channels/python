@@ -95,6 +95,41 @@ jobs:
           path: benchmarks/
 
 
+  integration:
+    name: Replay the released channel
+    runs-on: ubuntu-latest
+    # Deliberately not a dependency of `build`: the unit tests gate a release,
+    # and a slow or unreachable Zenodo should not hold one up.  The matrix job
+    # above skips these tests because it has no cache to run them against.
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Restore the channel files
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uwa-channels
+          # Bump when conftest.py points at a different record or file.
+          key: uwa-channels-21287414-black
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Replay and generate noise on the released files
+        run: PYTHONPATH=src pytest tests/test_zenodo.py --zenodo -v
+      - name: Upload the figures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenodo-figures
+          path: test_zenodo_*.png
+          if-no-files-found: ignore
+
+
   build:
     name: Build Package
     runs-on: ubuntu-latest

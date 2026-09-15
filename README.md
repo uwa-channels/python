@@ -91,15 +91,34 @@ Each noise MAT-file contains:
 
 ## Tests
 
-This repository includes automated testing via [GitHub Actions](https://github.com/uwa-channels/python/actions).  The [tests](/tests) folder contains three test suites:
+This repository includes automated testing via [GitHub Actions](https://github.com/uwa-channels/python/actions).  The [tests](/tests) folder contains five test suites:
 
 | Test | What it verifies |
 |------|-----------------|
 | `test_replay` | Generates random mobile channels ({static, mobile} × {theta\_hat, phi\_hat}), transmits a signal, and checks that cross-correlation peaks match the true multipath structure; also checks that `array_index` isolates individual hydrophones and that the output power scaling is O(1). |
 | `test_noisegen` | Verifies output size, spectral shape (17 dB/decade), spatial correlation (theoretical vs. sample), bandpass filtering, rms\_power scaling, Gaussianity (α = 2), and heavy-tail behavior (α < 2). |
 | `test_unpack` | Tests all tracking modes (none, theta\_hat, phi\_hat, f\_resamp, and combinations) for correct impulse response reconstruction. |
+| `test_io` | Writes the same channel and noise as both `-v7.3` and MAT v5, and checks that `load_channel` and `load_noise` hand `replay` and `noisegen` identical data either way. |
+| `test_zenodo` | Downloads a channel and its noise file from [Zenodo](https://doi.org/10.5281/zenodo.21287414) and replays a probe through them, checking the arrival against `h_hat` and `phi_hat` and the generated noise against `beta`.  See below. |
 
 Tests run automatically on every push, ensuring continued correctness of the core functions.
+
+### Testing against the released files
+
+The first four suites build their channels in memory, so they cannot catch a disagreement between the package and the files you actually download.  `test_zenodo` starts from the files: it fetches `black.mat` and `black_noise.mat` (162 MB, checked against the MD5 digests Zenodo publishes), replays a BPSK probe through the channel, and checks that
+
+* the arrival lands within two samples of `fs_delay` of where `h_hat` and the delay drift `phi_hat / (2π f_c)` say it should,
+* the measured power-delay profile matches the one stored in `h_hat`,
+* the generated noise has the spatial covariance `beta` prescribes, and
+* both `load_channel` and `load_noise` read the released data identically from a `-v7.3` and a MAT v5 copy.
+
+Because of the download it is opt-in:
+
+```bash
+PYTHONPATH=src pytest tests/test_zenodo.py --zenodo
+```
+
+Files land in `~/.cache/uwa-channels`, or in `$UWA_CHANNELS_CACHE` if you set it; point that at a directory where you already keep the library and nothing is downloaded.  Once the files are there the suite runs as part of a plain `pytest`.  `UWA_CHANNELS_ZENODO=1` is equivalent to `--zenodo`.
 
 ## Related repositories
 
