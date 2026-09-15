@@ -1,14 +1,15 @@
 import numpy as np
 import scipy.signal as sg
-import h5py
 import matplotlib.pyplot as plt
-from uwa_channels import replay, noisegen
+from uwa_channels import replay, noisegen, load_channel, load_noise
 
 
 if __name__ == "__main__":
 
-    channel = h5py.File("blue_1.mat", "r")
-    noise = h5py.File("blue_noise.mat", "r")
+    # load_channel / load_noise open either a -v7.3 or a MAT v5 file.  The
+    # released red_noise.mat is v5, which h5py cannot read.
+    channel = load_channel("blue_1.mat")
+    noise = load_noise("blue_noise.mat")
 
     ## Parameters
     fs = 48e3

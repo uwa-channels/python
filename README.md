@@ -25,6 +25,7 @@ pip install uwa-channels
 | `replay` | Pass a passband signal through a measured underwater acoustic channel. |
 | `noisegen` | Generate realistic ocean noise: pink Gaussian (17 dB/decade), spatially-correlated Gaussian, or impulsive (symmetric α-stable). |
 | `unpack` | Reconstruct the full time-varying impulse response from the compressed representation. |
+| `load_channel`, `load_noise` | Open a channel or noise MAT-file saved either with or without `-v7.3`. |
 
 ## Quick start
 
@@ -33,11 +34,10 @@ Download the channel MAT-files from [Zenodo](https://doi.org/10.5281/zenodo.2128
 ### Replay and noise generation
 
 ```python
-import h5py
-from uwa_channels import replay, noisegen
+from uwa_channels import replay, noisegen, load_channel, load_noise
 
-channel = h5py.File("blue_1.mat", "r")
-noise = h5py.File("blue_1_noise.mat", "r")
+channel = load_channel("blue_1.mat")
+noise = load_noise("blue_noise.mat")
 
 array_index = [0, 1, 2]
 y = replay(input, fs, array_index, channel)
@@ -47,13 +47,22 @@ r = y + 0.05 * w
 
 See `examples/example_replay.py` for a complete example that generates a BPSK signal, replays it through the `blue_1` channel, adds noise, and plots the received signal, cross-correlation, and spectrum.
 
+> **Use `load_channel` / `load_noise` rather than `h5py.File` directly.**
+> The file-format specification asks for `-v7.3` (HDF5), and `h5py` reads only
+> that. `red_noise.mat` in the v1.0 Zenodo release is a MAT v5 file, so
+> `h5py.File("red_noise.mat", "r")` fails with
+> `OSError: file signature not found`. The loaders open either flavour and
+> return something `replay`, `noisegen` and `unpack` accept unchanged — for a
+> `-v7.3` file they return the same open `h5py.File` as before. The same
+> applies to a channel you estimate yourself, since MATLAB's `save` writes v5
+> unless told otherwise.
+
 ### Unpack
 
 ```python
-import h5py
-from uwa_channels import unpack
+from uwa_channels import unpack, load_channel
 
-channel = h5py.File("blue_1.mat", "r")
+channel = load_channel("blue_1.mat")
 unpacked = unpack(fs_time, array_index, channel)
 ```
 

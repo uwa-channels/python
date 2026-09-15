@@ -1,12 +1,11 @@
 import numpy as np
-import h5py
 import matplotlib.pyplot as plt
-from uwa_channels import unpack
+from uwa_channels import unpack, load_channel
 
 
 if __name__ == "__main__":
     ## Load channel impulse responses
-    channel = h5py.File("blue_1.mat", "r")
+    channel = load_channel("blue_1.mat")
 
     ## Parammeters
     fs_delay = channel["params"]["fs_delay"][0, 0]

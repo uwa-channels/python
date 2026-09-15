@@ -137,9 +137,15 @@ def _noise_mixing(input_shape, fs, Fs, noise, array_index):
     alpha = float(noise["alpha"][0, 0])
     beta = np.asarray(noise["beta"])
 
-    # Ensure shape is (M, M, K): handle a MATLAB-style (K, M, M) layout.
+    # Ensure shape is (M, M, K).  h5py reports a MATLAB [M, M, K] array with
+    # every axis reversed, i.e. as (K, M, M) with A[k, j, i] = beta_ij(k), so
+    # the inverse is (2, 1, 0).  It is not (1, 2, 0): that leaves beta
+    # transposed in (i, j), so the mixing computes sum_j beta_ji(k) eta_j
+    # instead of sum_j beta_ij(k) eta_j.  beta is not symmetric in (i, j) --
+    # for blue_noise the two differ by 55% of the peak coefficient -- so the
+    # spatial covariance of the generated noise comes out wrong.
     if beta.ndim == 3 and beta.shape[0] != beta.shape[1]:
-        beta = np.transpose(beta, (1, 2, 0))
+        beta = np.transpose(beta, (2, 1, 0))
 
     frac = Fraction(fs / Fs).limit_denominator()
     signal_size = list(input_shape)
