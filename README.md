@@ -49,13 +49,10 @@ See `examples/example_replay.py` for a complete example that generates a BPSK si
 
 > **Use `load_channel` / `load_noise` rather than `h5py.File` directly.**
 > The file-format specification asks for `-v7.3` (HDF5), and `h5py` reads only
-> that. `red_noise.mat` in the v1.0 Zenodo release is a MAT v5 file, so
-> `h5py.File("red_noise.mat", "r")` fails with
-> `OSError: file signature not found`. The loaders open either flavour and
-> return something `replay`, `noisegen` and `unpack` accept unchanged — for a
-> `-v7.3` file they return the same open `h5py.File` as before. The same
-> applies to a channel you estimate yourself, since MATLAB's `save` writes v5
-> unless told otherwise.
+> that; MATLAB's `save` writes MAT v5 unless told otherwise. The loaders accept
+> either flavour and return something `replay`, `noisegen` and `unpack` take
+> unchanged — for a `-v7.3` file they return the same open `h5py.File` as
+> before.
 
 ### Unpack
 

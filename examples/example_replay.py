@@ -6,8 +6,7 @@ from uwa_channels import replay, noisegen, load_channel, load_noise
 
 if __name__ == "__main__":
 
-    # load_channel / load_noise open either a -v7.3 or a MAT v5 file.  The
-    # released red_noise.mat is v5, which h5py cannot read.
+    # load_channel / load_noise open either a -v7.3 or a MAT v5 file.
     channel = load_channel("blue_1.mat")
     noise = load_noise("blue_noise.mat")
 

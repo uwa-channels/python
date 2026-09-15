@@ -1,19 +1,16 @@
 """Loaders that open a library ``.mat`` file whatever it was saved with.
 
-The file-format specification requires ``-v7.3`` (HDF5), and ``h5py`` is the
-reader the rest of the package is written against.  Not every file in
-circulation obeys that, though: ``red_noise.mat`` in the v1.0 Zenodo release is
-a MAT v5 file, and a channel estimated locally without ``-v7.3`` will be v5 as
-well.  ``h5py`` rejects those with a bare ``OSError: file signature not found``,
-which is an unhelpful thing to hand a user whose only mistake was downloading
-the file we published.
+The file-format specification asks for ``-v7.3`` (HDF5), which is what ``h5py``
+reads and what the rest of the package is written against.  MAT v5 files turn
+up anyway -- MATLAB's ``save`` writes v5 unless told otherwise -- and ``h5py``
+rejects them with a bare ``OSError: file signature not found``.
 
-:func:`load_noise` and :func:`load_channel` try HDF5 first and fall back to
-:func:`scipy.io.loadmat`, returning something the rest of the package consumes
-unchanged.  The awkward part of the fallback is that HDF5 stores MATLAB arrays
-with their axes reversed and splits complex values into a compound
-``('real', 'imag')`` dtype, while ``scipy.io.loadmat`` does neither -- so the
-v5 path has to reproduce both conventions.
+:func:`load_noise` and :func:`load_channel` accept either flavour and return
+something the rest of the package consumes unchanged.  The awkward part of the
+v5 path is that HDF5 stores MATLAB arrays with their axes reversed and splits
+complex values into a compound ``('real', 'imag')`` dtype, while
+:func:`scipy.io.loadmat` does neither, so the fallback has to reproduce both
+conventions.
 
 Author: Zhengnan Li
 Email : uwa-channels@ofdm.link
@@ -135,16 +132,16 @@ def load_noise(path):
 
     Notes
     -----
-    ``noisegen`` already accepts both layouts of ``beta``: ``h5py`` reports it
-    as ``(L+1, M, M)`` because HDF5 reverses the MATLAB axes, ``loadmat``
-    reports the stored ``(M, M, L+1)``, and the mixing code normalizes whichever
-    it is given.  No transposition is applied here.
+    ``noisegen`` accepts both layouts of ``beta``: ``h5py`` reports it as
+    ``(L+1, M, M)`` because HDF5 reverses the MATLAB axes, ``loadmat`` reports
+    the stored ``(M, M, L+1)``, and the mixing code normalizes whichever it is
+    given.  No transposition is applied here.
 
     Examples
     --------
     >>> from uwa_channels import load_noise, noisegen      # doctest: +SKIP
-    >>> noise = load_noise("red_noise.mat")                # doctest: +SKIP
-    >>> w = noisegen((4096, 3), 96e3, [0, 1, 2], noise)    # doctest: +SKIP
+    >>> noise = load_noise("blue_noise.mat")               # doctest: +SKIP
+    >>> w = noisegen((4096, 3), 48e3, [0, 1, 2], noise)    # doctest: +SKIP
     """
     if is_hdf5(path):
         return h5py.File(path, "r")
@@ -171,11 +168,11 @@ def load_channel(path):
 
     Notes
     -----
-    Every channel in the v1.0 release is already ``-v7.3``.  The fallback
-    matters for channels you estimate yourself: MATLAB's ``save`` writes v5
-    unless told otherwise, and the resulting file is perfectly good data that
-    ``h5py`` simply cannot read.  Save with ``-v7.3 -nocompression`` when you
-    can, as the file-format specification asks.
+    The fallback matters most for channels you estimate yourself: MATLAB's
+    ``save`` writes v5 unless told otherwise, and the resulting file is
+    perfectly good data that ``h5py`` simply cannot read.  Save with
+    ``-v7.3 -nocompression`` when you can, as the file-format specification
+    asks.
 
     Examples
     --------

@@ -4,9 +4,7 @@ Unit tests for io.py
 The package reads MAT-files with h5py, which only understands the ``-v7.3``
 (HDF5) flavour that the file-format specification asks for.  Files saved
 without that flag are MAT v5, and h5py rejects them with a bare
-``OSError: file signature not found``.  That is not hypothetical: the v1.0
-Zenodo release ships ``red_noise.mat`` as v5 while everything else is v7.3, so
-the documented Python path fails on the library's only impulsive noise model.
+``OSError: file signature not found``.
 
 ``load_noise`` and ``load_channel`` open either flavour and hand back something
 ``noisegen``, ``replay`` and ``unpack`` consume unchanged.  These tests write
@@ -126,7 +124,7 @@ def test_is_hdf5_missing_file(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_load_noise_opens_v5(noise_pair):
-    """The case that motivated this: h5py refuses, load_noise does not."""
+    """h5py refuses a v5 file; load_noise does not."""
     v5, _, beta = noise_pair
     with pytest.raises(OSError):
         h5py.File(v5, "r")
