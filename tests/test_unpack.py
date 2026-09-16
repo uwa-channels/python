@@ -399,5 +399,96 @@ def test_unpack_function(params):
     plt.close(fig)
 
 
+# ---------------------------------------------------------------------------
+# The f_resamp phase ramp
+#
+# The parameterized test above draws pictures; these assert.  A ramp built on
+# the wrong origin -- starting one sample in rather than at zero -- puts a
+# constant phase rotation, and through the drift a constant delay offset, on
+# every unpacked tap, and nothing above would notice.  It is what
+# uwa-channels/matlab shipped until Sep. 16, 2026.
+# ---------------------------------------------------------------------------
+
+
+def static_channel(taps, n_time, fc, fs_delay, fs_time):
+    """A channel whose every snapshot is the same tap vector."""
+    h = np.tile(np.asarray(taps, dtype=complex), (n_time, 1, 1))  # (T, 1, K)
+    return {
+        "h_hat": {"real": h.real, "imag": h.imag},
+        "params": {
+            "fs_delay": np.array([[fs_delay]]),
+            "fs_time": np.array([[fs_time]]),
+            "fc": np.array([[fc]]),
+        },
+        "version": np.array([[1.0]]),
+    }
+
+
+def test_f_resamp_ramp_starts_at_zero():
+    """Adding f_resamp must not move the first output sample.
+
+    ``unpack`` interpolates the trajectory from ``t_orig = arange(N_phi) /
+    fs_delay``, so sample *n* sits at ``n / fs_delay`` and the ramp is zero at
+    t = 0.  Both runs below share one resampled ``h_hat``, so the resampling
+    transients cancel exactly and the only thing left at the first sample is
+    what f_resamp contributes there, which is nothing.
+    """
+    fc, fs_delay, fs_time, fs_out = 15e3, 16e3, 100.0, 160.0
+    excess = 1e-3                                  # 1 / f_resamp - 1
+    taps = np.zeros(128, dtype=complex)
+    taps[[5, 19, 44, 77]] = [1, 0.6 - 0.3j, -0.4 + 0.2j, 0.15j]
+
+    channel = static_channel(taps, 200, fc, fs_delay, fs_time)
+    u0 = unpack(fs_out, [0], channel, 0.3, 0.3)
+    channel["f_resamp"] = np.array([[1 / (1 + excess)]])
+    u1 = unpack(fs_out, [0], channel, 0.3, 0.3)
+
+    first0, first1 = u0[:, 0, 0], u1[:, 0, 0]
+    scale = np.linalg.norm(first0)
+    assert scale > 0, "the test channel unpacked to nothing; the fixture is wrong"
+
+    moved = np.linalg.norm(first1 - first0) / scale
+    # What a ramp built one sample in would have done, as the yardstick.
+    wrong = abs(np.exp(1j * excess * 2 * np.pi * fc / fs_delay) - 1)
+    assert moved < wrong / 1e3, (
+        f"the f_resamp ramp does not start at zero: the first output sample "
+        f"moves by {moved:.2e} of its norm when f_resamp is added, against "
+        f"{wrong:.2e} for a ramp built one sample in"
+    )
+
+
+def test_f_resamp_ramp_rate():
+    """...and it must then advance at (1/f_resamp - 1) * 2 pi fc per second.
+
+    Measured on the sum over the delay axis, which is the zero-frequency point
+    of the delay response and so is untouched by the delay drift f_resamp also
+    applies.  ``excess`` is small enough that the drift stays well inside one
+    sample over the record, so no energy leaves the delay window.
+    """
+    fc, fs_delay, fs_time, fs_out = 15e3, 16e3, 100.0, 160.0
+    excess = 2e-6
+    taps = np.zeros(128, dtype=complex)
+    taps[[21, 40, 63]] = [1, 0.5 - 0.2j, 0.25 + 0.1j]
+
+    channel = static_channel(taps, 500, fc, fs_delay, fs_time)
+    u0 = unpack(fs_out, [0], channel, 0.3, 0.3)
+    channel["f_resamp"] = np.array([[1 / (1 + excess)]])
+    u1 = unpack(fs_out, [0], channel, 0.3, 0.3)
+
+    g0, g1 = u0[:, 0, :].sum(axis=0), u1[:, 0, :].sum(axis=0)
+    keep = np.abs(g0) > 0.1 * np.abs(g0).max()       # skip the resample ramp-up
+    t = np.arange(len(g0)) / fs_out
+
+    measured = np.angle(g1[keep] / g0[keep])
+    predicted = excess * 2 * np.pi * fc * t[keep]
+    residual = np.angle(np.exp(1j * (measured - predicted)))   # wrap-safe
+
+    assert np.abs(residual).max() < 1e-3, (
+        f"the f_resamp phase ramp advances at the wrong rate: worst residual "
+        f"{np.abs(residual).max():.2e} rad against a total ramp of "
+        f"{predicted[-1]:.3f} rad"
+    )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
