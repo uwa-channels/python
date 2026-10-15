@@ -176,11 +176,20 @@ def test_option1_spectral_slope():
 
 
 def test_option1_spatial_independence():
-    """Channels should be independent."""
-    w = noisegen((N, 4), FS)
+    """Channels should be independent.
+
+    Pink noise has most of its power at the lowest frequencies, so it holds
+    few independent samples and its sample correlation spreads widely: over
+    40 seeds the largest off-diagonal entry reached 0.16 for independent
+    channels.  First differences of independent channels are still
+    independent but nearly white, so their correlation spreads as 1/sqrt(N):
+    over the same seeds the largest entry was 0.004, while a 5% leak of one
+    channel into another gives 0.047.
+    """
+    w = np.diff(noisegen((N, 4), FS), axis=0)
     C = np.corrcoef(w.T)
     off_diag = C - np.eye(4)
-    assert np.max(np.abs(off_diag)) < 0.1, "Channels are not independent"
+    assert np.max(np.abs(off_diag)) < 0.02, "Channels are not independent"
 
 
 # ====================================================================
@@ -415,9 +424,9 @@ def test_option3_rms_scaling():
 
     total_pp = sum(_pseudo_power(w[:, m], alpha) for m in range(M))
 
-    assert abs(total_pp - M) / M < 0.15, (
-        f"sum(pseudo-power) = {total_pp:.2f}, expected ~{M}"
-    )
+    assert (
+        abs(total_pp - M) / M < 0.15
+    ), f"sum(pseudo-power) = {total_pp:.2f}, expected ~{M}"
 
 
 def test_option3_resampling():
@@ -657,9 +666,9 @@ def test_mixing_sas_characteristic_function(alpha):
     for t in (0.5, 1.0, 2.0):
         phi = np.mean(np.cos(t * w))
         expected = np.exp(-abs(t / np.sqrt(2)) ** alpha)
-        assert abs(phi - expected) < 0.01, (
-            f"alpha={alpha}, t={t}: E[cos(tw)] = {phi:.4f}, expected {expected:.4f}"
-        )
+        assert (
+            abs(phi - expected) < 0.01
+        ), f"alpha={alpha}, t={t}: E[cos(tw)] = {phi:.4f}, expected {expected:.4f}"
 
 
 def test_mixing_resampling_changes_content():
