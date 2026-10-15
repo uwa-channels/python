@@ -28,6 +28,8 @@ Revision history:
   - Feb. 27, 2026: Initial release.
   - Mar.  9, 2026: Unified noise dict. Synthetic beta modeled
                     on real experimental data.
+  - Oct. 15, 2026: Exact mixing checks: transpose, time direction,
+                    array_index mapping, SaS scale, resampling.
 """
 
 import pytest
@@ -544,6 +546,142 @@ def test_option3_spatial_correlation():
     ), "Adjacent channels should be more correlated than distant ones"
     c_vs_d = [np.mean(np.abs(np.diag(C_spearman, d))) for d in range(1, M)]
     assert c_vs_d[0] > c_vs_d[-1], "Correlation should decay with element separation"
+
+
+# ====================================================================
+#  Mixing structure: exact checks with small hand-built beta
+# ====================================================================
+#
+# The tests above use make_noise_struct, whose beta is nearly symmetric in
+# (i, j) and is compared through normalized correlation.  Those tests cannot
+# see a transposed beta, a reversed time direction, a wrong array_index
+# mapping, or the scale of the alpha-stable drivers.  Each test below is
+# built so that one of these errors moves the result outside its tolerance.
+
+
+def make_beta(M, K):
+    """Mixing coefficients that are asymmetric in (i, j) and vary with lag k,
+    so that beta and its transpose (in i, j or in k) give different statistics."""
+    i, j, k = np.meshgrid(
+        np.arange(1, M + 1), np.arange(1, M + 1), np.arange(1, K + 1), indexing="ij"
+    )
+    return np.cos(1.3 * i + 0.7 * j + 0.5 * k) / k
+
+
+def make_mixing_noise(beta, Fs=FS, alpha=2.0):
+    """Minimal noise dict around a given beta."""
+    return {
+        "Fs": np.array([[Fs]]),
+        "alpha": np.array([[alpha]]),
+        "beta": beta,
+        "version": 1.0,
+    }
+
+
+def _mix(n, beta, array_index=None, fs=FS, Fs=FS, alpha=2.0, seed=0):
+    if array_index is None:
+        array_index = list(range(beta.shape[0]))
+    np.random.seed(seed)
+    noise = make_mixing_noise(beta, Fs, alpha)
+    return noisegen((n, len(array_index)), fs, array_index, noise)
+
+
+def test_mixing_covariance_is_not_transposed():
+    """Zero-lag covariance equals sum_k B_k B_k^T, not sum_k B_k^T B_k.
+
+    The raw covariance is compared, not the correlation coefficient, so the
+    scale of beta is checked too.
+    """
+    beta = make_beta(3, 4)
+    w = _mix(200000, beta, seed=11)
+    C = np.cov(w.T)
+    R0 = sum(beta[:, :, k] @ beta[:, :, k].T for k in range(4))
+    R0_transposed = sum(beta[:, :, k].T @ beta[:, :, k] for k in range(4))
+
+    err = np.linalg.norm(C - R0) / np.linalg.norm(R0)
+    err_transposed = np.linalg.norm(C - R0_transposed) / np.linalg.norm(R0)
+    assert err < 0.05, f"Covariance mismatch: relative error {err:.4f}"
+    assert err_transposed > 0.5, "Test beta cannot distinguish a transpose"
+
+
+def test_mixing_runs_forward_in_time():
+    """Lag-1 cross-covariance pins the direction of time.
+
+    The generator mixes forward, w_i(n) = sum_{j,k} beta_ij(k) eta_j(n + k),
+    the convention under which NoiseModels.jl estimates beta.  Then
+    E[w(n) w(n+1)^T] = sum_k B_{k+1} B_k^T.  Mixing backward, eta_j(n - k),
+    gives the transpose.  The zero-lag covariance is the same either way.
+    """
+    beta = make_beta(3, 4)
+    w = _mix(200000, beta, seed=11)
+    R1 = w[:-1].T @ w[1:] / (len(w) - 1)
+    forward = sum(beta[:, :, k + 1] @ beta[:, :, k].T for k in range(3))
+    backward = forward.T
+
+    err = np.linalg.norm(R1 - forward) / np.linalg.norm(forward)
+    err_backward = np.linalg.norm(R1 - backward) / np.linalg.norm(forward)
+    assert err < 0.05, f"Lag-1 covariance mismatch: relative error {err:.4f}"
+    assert err_backward > 0.5, "Test beta cannot distinguish the time direction"
+
+
+def test_mixing_subset_equals_slice():
+    """With the same seed, a subset of array_index is the matching columns of
+    the full draw, in the order requested."""
+    beta = make_beta(4, 3)
+    w_all = _mix(500, beta, seed=3)
+    w_sub = _mix(500, beta, array_index=[2, 0], seed=3)
+    np.testing.assert_allclose(w_sub, w_all[:, [2, 0]])
+
+
+def test_mixing_array_index_selects_element():
+    """Elements with powers 1, 1e2 and 1e4 show which one array_index picked."""
+    beta = np.zeros((3, 3, 1))
+    for i in range(3):
+        beta[i, i, 0] = 10.0**i
+    w = _mix(50000, beta, array_index=[2, 0], seed=5)
+    p = np.mean(w**2, axis=0)
+    assert 0.5e4 < p[0] < 2e4, f"array_index 2 gave power {p[0]:.3g}, expected 1e4"
+    assert 0.5 < p[1] < 2, f"array_index 0 gave power {p[1]:.3g}, expected 1"
+
+
+@pytest.mark.parametrize("alpha", [1.2, 1.5, 1.9])
+def test_mixing_sas_characteristic_function(alpha):
+    """Identity mixing gives SaS noise with scale 1/sqrt(2), whose
+    characteristic function is exp(-|t / sqrt(2)|^alpha).
+
+    Unlike kurtosis, which is infinite for alpha < 2, the empirical
+    characteristic function is bounded; its standard error here is < 0.003.
+    """
+    beta = np.eye(2)[:, :, None]
+    w = _mix(100000, beta, alpha=alpha, seed=9)
+    for t in (0.5, 1.0, 2.0):
+        phi = np.mean(np.cos(t * w))
+        expected = np.exp(-abs(t / np.sqrt(2)) ** alpha)
+        assert abs(phi - expected) < 0.01, (
+            f"alpha={alpha}, t={t}: E[cos(tw)] = {phi:.4f}, expected {expected:.4f}"
+        )
+
+
+def test_mixing_resampling_changes_content():
+    """Resampling changes the lag-1 autocorrelation, not only the length.
+
+    Measured at Fs = 48 kHz the lag-1 autocorrelation is 0.47; upsampling to
+    96 kHz raises it to 0.83 and downsampling to 24 kHz lowers it to 0.27.
+    """
+    beta = make_beta(2, 3)
+
+    def r1(x):
+        return np.sum(x[:-1] * x[1:]) / np.sum(x**2)
+
+    r = {}
+    for fs in (24000.0, 48000.0, 96000.0):
+        w = _mix(100000, beta, fs=fs, seed=5)
+        assert w.shape == (100000, 2)
+        assert np.all(np.isfinite(w))
+        r[fs] = r1(w[:, 0])
+    assert 0.4 < r[48000.0] < 0.55, f"lag-1 at the measured rate: {r[48000.0]:.3f}"
+    assert r[96000.0] > 0.7, f"lag-1 at 96 kHz: {r[96000.0]:.3f}"
+    assert r[24000.0] < 0.35, f"lag-1 at 24 kHz: {r[24000.0]:.3f}"
 
 
 # ====================================================================
