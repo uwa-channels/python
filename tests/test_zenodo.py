@@ -658,10 +658,11 @@ def test_quick_start_runs_on_the_released_files(channel, noise, replayed):
     assert np.isfinite(r).all()
 
     # Both terms are order one: h_hat carries the channel's own gain and beta
-    # is normalized so the element powers sum to the element count, so a
-    # unit-variance probe comes back at a sane level rather than needing a
-    # fudge factor.  Each element's noise power is the one its row of beta
-    # sets, not unity.
+    # is normalized so the powers of all the file's elements sum to the
+    # element count, so a unit-variance probe comes back at a sane level
+    # rather than needing a fudge factor.  Each element's noise power is the
+    # one its row of beta sets, not unity, so the three selected here need
+    # not sum to three.
     signal = np.var(y, axis=0)
     assert np.all(signal > 1e-3) and np.all(signal < 1e3), f"replay power {signal}"
     beta = np.asarray(noise["beta"])
