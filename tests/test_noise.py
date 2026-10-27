@@ -9,12 +9,13 @@ Tests three noise generation modes:
             (alpha < 2, beta mixing coefficients).
 
 Options 2 and 3 share a unified noise dict with fields:
-  Fs, R, alpha, beta, fc, rms_power, version.
+  Fs, R, alpha, beta, fc, version.
 The beta mixing coefficients encode both the bandpass spectral shaping
-and the per-channel power scaling: they are normalized so each channel
-carries unit pseudo-power (2*c^2, the alpha-stable scale measure that
-reduces to the variance when alpha = 2), i.e. the per-channel
-pseudo-powers summed over channels equal the channel count.
+and the per-channel power scaling: they are normalized so the
+per-channel pseudo-powers (2*c^2, the alpha-stable scale measure that
+reduces to the variance when alpha = 2) sum to the channel count, while
+each channel keeps its own power relative to the others, as in the
+released noise files.
 
 The synthetic noise dict is modeled on real experimental data
 (12-element ULA, 65 mixing taps, Fs=39062.5 Hz, fc=13 kHz,
@@ -30,6 +31,10 @@ Revision history:
                     on real experimental data.
   - Oct. 15, 2026: Exact mixing checks: transpose, time direction,
                     array_index mapping, SaS scale, resampling.
+  - Oct. 26, 2026: The synthetic beta gives the channels unequal powers
+                    that sum to M, as the released files do, and the
+                    scaling test checks that noisegen keeps each
+                    channel's power.  Removed rms_power.
 """
 
 import pytest
@@ -101,17 +106,18 @@ def make_noise_struct(alpha, perturb=0.05):
 
     np.random.set_state(rng_state)
 
-    # Normalize each channel to unit pseudo-power.
+    # Normalize the pseudo-powers to sum to M.
     # Power is the alpha-stable pseudo-power 2*c^2 (c = scale parameter),
-    # reducing to the variance when alpha = 2.  Channel i is SaS with
-    # c_i^alpha proportional to sum_{j,k} |beta[i,j,k]|^alpha, so scaling each
-    # channel's taps to unit alpha-norm yields unit pseudo-power and the
-    # pseudo-powers sum to M.  For alpha = 2 this is the L2 (energy) norm.
+    # reducing to the variance when alpha = 2.  With drivers of scale
+    # 1/sqrt(2), channel i has pseudo-power
+    # (sum_{j,k} |beta[i,j,k]|^alpha)^(2/alpha), so scaling each channel's
+    # taps to unit alpha-norm gives it unit pseudo-power, and a further
+    # sqrt(g[i]) gives it pseudo-power g[i].  g varies mildly across the
+    # elements (ratio max/min ~ 1.5) and sums to M, as in the released
+    # files.  For alpha = 2 this is the L2 (energy) norm.
+    g = 1 + 0.2 * np.linspace(-1, 1, M)
     for i in range(M):
-        beta[i] /= np.sum(np.abs(beta[i]) ** alpha) ** (1.0 / alpha)
-
-    # Per-channel RMS power (mild variation, ratio max/min ~ 1.3)
-    rms_power = 3.2e-4 * (1 + 0.1 * np.linspace(-1, 1, M)).reshape(-1, 1)
+        beta[i] *= np.sqrt(g[i]) / np.sum(np.abs(beta[i]) ** alpha) ** (1.0 / alpha)
 
     return {
         "Fs": np.array([[Fs]]),
@@ -119,7 +125,6 @@ def make_noise_struct(alpha, perturb=0.05):
         "alpha": np.array([[alpha]]),
         "beta": beta,
         "fc": np.array([[fc]]),
-        "rms_power": rms_power,
         "version": 1.0,
     }
 
@@ -283,17 +288,22 @@ def test_option2_array_index_subset():
 
 
 def test_option2_rms_scaling():
-    """Scaling is controlled by the (alpha-normalized) beta coefficients,
-    so the generated noise carries unit power per channel and the total
-    variance summed over channels equals the number of channels.
+    """Scaling is controlled by the beta coefficients, whose channel powers
+    sum to the number of channels.  noisegen must not rescale them: each
+    channel keeps the power its row of beta gives it,
+    sum over j and k of beta[i, j, k]**2.
     """
     noise = make_noise_struct(2)
     M = noise["beta"].shape[0]
     w = noisegen((N, M), FS, list(range(M)), noise)
 
-    total_var = np.sum(np.var(w, axis=0))  # expect ~M for unit power per channel
+    total_var = np.sum(np.var(w, axis=0))  # expect ~M
+    expected = np.sum(noise["beta"] ** 2, axis=(1, 2))
 
     assert abs(total_var - M) / M < 0.15, f"sum(var) = {total_var:.2f}, expected ~{M}"
+    assert np.allclose(np.var(w, axis=0), expected, rtol=0.1), (
+        f"per-channel power {np.var(w, axis=0)} should follow beta, {expected}"
+    )
 
 
 def test_option2_bandpass():

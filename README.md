@@ -87,8 +87,9 @@ Each noise MAT-file contains:
 | `alpha` | Stability index (2 = Gaussian, < 2 = impulsive) |
 | `beta` | Mixing coefficients, shape (M, M, K) |
 | `fc` | Center frequency [Hz] |
-| `rms_power` | Per-channel RMS power scaling, shape (M, 1) |
 | `version` | Noise struct version |
+
+`beta` is normalized so that the noise powers of the M elements sum to M; each element keeps its measured power relative to the others.
 
 ## Tests
 
@@ -97,7 +98,7 @@ This repository includes automated testing via [GitHub Actions](https://github.c
 | Test | What it verifies |
 |------|-----------------|
 | `test_replay` | Generates random mobile channels ({static, mobile} × {theta\_hat, phi\_hat}), transmits a signal, and checks that cross-correlation peaks match the true multipath structure; also checks that `array_index` isolates individual hydrophones and that the output power scaling is O(1). |
-| `test_noisegen` | Verifies output size, spectral shape (17 dB/decade), spatial correlation (theoretical vs. sample), bandpass filtering, rms\_power scaling, Gaussianity (α = 2), and heavy-tail behavior (α < 2). |
+| `test_noise` | Verifies output size, spectral shape (17 dB/decade), spatial correlation (theoretical vs. sample), bandpass filtering, per-channel power scaling by `beta`, Gaussianity (α = 2), and heavy-tail behavior (α < 2). |
 | `test_unpack` | Tests all tracking modes (none, theta\_hat, phi\_hat, f\_resamp, and combinations) for correct impulse response reconstruction. |
 | `test_io` | Writes the same channel and noise as both `-v7.3` and MAT v5, and checks that `load_channel` and `load_noise` hand `replay` and `noisegen` identical data either way. |
 | `test_zenodo` | Downloads a channel and its noise file from [Zenodo](https://doi.org/10.5281/zenodo.21287414) and replays a probe through them, checking the arrival against `h_hat` and `phi_hat` and the generated noise against `beta`.  See below. |

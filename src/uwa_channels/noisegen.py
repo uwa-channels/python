@@ -32,11 +32,12 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
           R         - Signal bandwidth [Hz].
           alpha     - Stability index (2 = Gaussian, <2 = impulsive).
           beta      - Mixing coefficients, shape (M, M, K).  Normalized so
-                      each channel carries unit pseudo-power (2*c^2, the
-                      alpha-stable scale measure that reduces to the variance
-                      when alpha = 2); the pseudo-powers summed over channels
-                      equal the channel count M.  beta also encodes the
-                      bandpass spectral shaping.
+                      the per-channel pseudo-powers (2*c^2, the alpha-stable
+                      scale measure that reduces to the variance when
+                      alpha = 2) sum to the channel count M, while each
+                      channel keeps its measured power relative to the
+                      others.  beta also encodes the bandpass spectral
+                      shaping.
           fc        - Center frequency [Hz].
           version   - Noise struct version (>= 1.0).
 
@@ -62,6 +63,9 @@ def noisegen(input_shape, fs, array_index=(0,), noise=None):
       - Jul.  8, 2026: Vectorized pink noise generation; the per-channel
                        convolution loop is replaced by a single FFT
                        convolution across all channels.  Output is unchanged.
+      - Oct. 26, 2026: Corrected the description of the beta normalization:
+                       the powers sum to M but differ between channels.  The
+                       pink noise has unit power on every channel.
     """
 
     if noise is None:
@@ -132,7 +136,8 @@ def _noise_mixing(input_shape, fs, Fs, noise, array_index):
     The driver z has unit pseudo-power: for alpha = 2 it is standard Gaussian
     (Var[z] = 1); for alpha < 2 it is SaS with scale 1/sqrt(2) (matching
     MATLAB stabrnd's c = 1/sqrt(2)).  Per-channel scaling is carried entirely
-    by the (normalized) mixing coefficients beta.
+    by the mixing coefficients beta, whose pseudo-powers sum to M; no further
+    normalization is applied here.
     """
     alpha = float(noise["alpha"][0, 0])
     beta = np.asarray(noise["beta"])

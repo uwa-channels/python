@@ -316,8 +316,8 @@ def test_noise_file_matches_the_published_format(noise, channel):
     )
     assert np.isfinite(beta).all()
 
-    # Each channel is normalized to unit pseudo-power, so the pseudo-powers sum
-    # to the element count.
+    # beta is normalized so the per-channel pseudo-powers sum to the element
+    # count; each element keeps its measured power relative to the others.
     power = np.sum(np.abs(beta) ** alpha, axis=(1, 2)) ** (2.0 / alpha)
     assert np.sum(power) == pytest.approx(M, rel=1e-3)
 
@@ -658,12 +658,18 @@ def test_quick_start_runs_on_the_released_files(channel, noise, replayed):
     assert np.isfinite(r).all()
 
     # Both terms are order one: h_hat carries the channel's own gain and beta
-    # is normalized to unit pseudo-power per element, so a unit-variance probe
-    # comes back at a sane level rather than needing a fudge factor.
+    # is normalized so the element powers sum to the element count, so a
+    # unit-variance probe comes back at a sane level rather than needing a
+    # fudge factor.  Each element's noise power is the one its row of beta
+    # sets, not unity.
     signal = np.var(y, axis=0)
     assert np.all(signal > 1e-3) and np.all(signal < 1e3), f"replay power {signal}"
-    assert np.allclose(np.var(w, axis=0), 1.0, rtol=0.25), (
-        f"noise power {np.var(w, axis=0)} should be near unity per element"
+    beta = np.asarray(noise["beta"])
+    if beta.shape[0] != beta.shape[1]:
+        beta = np.transpose(beta, (2, 1, 0))
+    expected = np.sum(beta[ARRAY_INDEX] ** 2, axis=(1, 2))
+    assert np.allclose(np.var(w, axis=0), expected, rtol=0.25), (
+        f"noise power {np.var(w, axis=0)} should follow beta, {expected}"
     )
 
     snr = 10 * np.log10(signal / (scale**2 * np.var(w, axis=0)))
