@@ -636,6 +636,113 @@ def test_replay_basic():
     assert np.isfinite(output).all()
 
 
+
+def drift_channel(fc, fs_delay, n_time, L, rate):
+    """A single-tap channel whose delay drifts at ``rate`` seconds per second,
+    held as phi_hat = -2 pi fc rate t, with fs_time = 20 Hz."""
+    fs_time = 20.0
+    h = np.zeros((n_time, 1, L), dtype=complex)
+    h[:, 0, L // 2] = 1
+    t = np.arange(int(n_time / fs_time * fs_delay)) / fs_delay
+    return {
+        "h_hat": {"real": h.real, "imag": h.imag},
+        "params": {
+            "fs_delay": np.array([[fs_delay]]),
+            "fs_time": np.array([[fs_time]]),
+            "fc": np.array([[fc]]),
+        },
+        "version": np.array([[1.0]]),
+        "phi_hat": (-2 * np.pi * fc * rate * t)[:, None],
+    }
+
+
+@pytest.mark.parametrize("rate", [2e-3, -2e-3], ids=["receding", "closing"])
+def test_late_start_keeps_both_ends_of_the_signal(rate):
+    """A replay late in a drifting channel must not lose either end of the input.
+
+    phi_hat accumulates over the whole record, so late in a channel whose
+    delay drifts steadily its absolute value is large.  replay reinserts the
+    drift relative to the starting sample; reinserting the absolute drift
+    shifted the output by all of it, which cut off the end of the signal when
+    the delay grows (receding) and its beginning when it shrinks (closing).
+    The delay here drifts by 2 ms per second, so 15 s in it is 30 ms, against
+    1 ms of change across the 0.5 s input.  A burst at each end must survive.
+    """
+    fs, fc, fs_delay = 96e3, 13e3, 8e3
+    channel = drift_channel(fc, fs_delay, 400, 64, rate)
+
+    x = np.zeros(int(0.5 * fs))
+    b = int(0.005 * fs)
+    burst = np.cos(2 * np.pi * fc * np.arange(b) / fs)
+    x[:b] = burst
+    x[-b:] = burst
+
+    early = replay(x, fs, [0], channel, start=1000)[:, 0]
+    late = replay(x, fs, [0], channel, start=int(15 * fs_delay))[:, 0]
+
+    ratio = np.sum(late**2) / np.sum(early**2)
+    assert 0.9 < ratio < 1.1, (
+        f"a replay 15 s in carries {ratio:.2f} of the energy of one at the "
+        f"start; part of the signal was cut off"
+    )
+    w = int(0.05 * fs)
+    head = np.sum(late[:w] ** 2) / np.sum(late**2)
+    tail = np.sum(late[-w:] ** 2) / np.sum(late**2)
+    assert head > 0.3, f"the burst at the start of the input is missing ({head:.2f})"
+    assert tail > 0.3, f"the burst at the end of the input is missing ({tail:.2f})"
+
+
+def test_output_length():
+    """The output is T + L samples at fs_delay, plus room for the drift.
+
+    T is the input length at fs_delay and L the number of taps.  With phi_hat,
+    the output also holds the largest delay the drift reaches in the replay
+    window, measured from the starting sample: with a delay growing at a
+    constant rate r that is ceil(r * (T + L - 1)) samples, and a shrinking
+    delay needs none, nor do theta_hat and no tracking.  The MATLAB toolbox
+    returns the same length.
+    """
+    fs, fc, fs_delay, L = 96e3, 13e3, 8e3, 64
+    x = np.random.randn(int(0.5 * fs))
+    T = int(np.ceil(x.size * fs_delay / fs))
+    up = int(fs / fs_delay)
+    rate = 2e-3
+
+    channel = drift_channel(fc, fs_delay, 400, L, rate)
+    n = replay(x, fs, [0], channel, start=1000).shape[0]
+    assert n == (T + L + int(np.ceil(rate * (T + L - 1)))) * up, "phi_hat, growing delay"
+
+    channel = drift_channel(fc, fs_delay, 400, L, -rate)
+    assert replay(x, fs, [0], channel, start=1000).shape[0] == (T + L) * up, (
+        "phi_hat, shrinking delay"
+    )
+
+    channel["theta_hat"] = channel.pop("phi_hat")
+    assert replay(x, fs, [0], channel, start=1000).shape[0] == (T + L) * up, "theta_hat"
+
+    del channel["theta_hat"]
+    assert replay(x, fs, [0], channel, start=1000).shape[0] == (T + L) * up, (
+        "no tracking"
+    )
+
+
+def test_random_start_stays_in_range():
+    """Without a start, replay draws one at random.
+
+    With the input nearly as long as the channel allows, the valid starts are
+    a handful of samples, so a draw past the last one reads beyond phi_hat or
+    h_hat and errors, and so would one before the first.
+    """
+    fs, fc, fs_delay, fs_time, L = 96e3, 13e3, 8e3, 20.0, 64
+    n_time = 40                                     # 2 s of channel
+    channel = drift_channel(fc, fs_delay, n_time, L, 2e-3)
+    T_max = int(n_time / fs_time * fs_delay)
+    T = T_max - L - 5                               # 5 valid starts
+    x = np.random.randn(int(T * fs / fs_delay))
+    for _ in range(200):
+        assert np.isfinite(replay(x, fs, [0], channel)).all()
+
+
 def test_replay_power():
     """Two checks for the array_index API:
 

@@ -53,6 +53,8 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
                        by clamping out-of-range values to zero; replaced
                        resample with PchipInterpolator for phase and drift to
                        eliminate FIR edge-effect ripples.
+      - Oct. 27, 2026: phi_hat takes precedence over theta_hat when a channel
+                       carries both, as in replay; their phases used to add.
     """
 
     ## Parameters
@@ -68,13 +70,14 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     phase_all = np.zeros((N_phi, len(array_index)))
     phase_drift = np.zeros((N_phi, len(array_index)))
 
-    if "theta_hat" in channel:
-        phase_all += np.array(channel["theta_hat"])[:, array_index]
-        # theta_hat does NOT contribute to phase_drift
-
+    # phi_hat is the whole tracked phase (est.m saves its one trajectory as
+    # phi_hat with delay tracking and as theta_hat without), so it takes
+    # precedence over theta_hat, as in replay.  theta_hat adds no drift.
     if "phi_hat" in channel:
         phase_all += np.array(channel["phi_hat"])[:, array_index]
         phase_drift += np.array(channel["phi_hat"])[:, array_index]
+    elif "theta_hat" in channel:
+        phase_all += np.array(channel["theta_hat"])[:, array_index]
 
     if "f_resamp" in channel:
         f_resamp_phase = (

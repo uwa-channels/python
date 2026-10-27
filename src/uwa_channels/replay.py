@@ -57,6 +57,13 @@ def replay(input, fs, array_index, channel, start=None):
       - Feb. 27, 2026: Fixed delay insertion for theta_hat vs phi_hat.
       - Jul.  7, 2026: Removed output normalization; power is now carried by
                        the CIR coefficients h_hat.
+      - Oct. 27, 2026: The delay drift is reinserted relative to the starting
+                       sample.  phi_hat accumulates over the whole record, and
+                       its absolute value, up to hundreds of samples, shifted a
+                       late replay so far that the end of the signal was cut
+                       off.  The output gets extra samples sized to the
+                       largest delay in the window, as in the MATLAB toolbox,
+                       so the two return the same length.
     """
 
     # Validate inputs
@@ -83,12 +90,24 @@ def replay(input, fs, array_index, channel, start=None):
     if start is None:
         start = np.random.randint(low=0, high=T_max - T - L)
 
+    # Room for the delay drift.  phi_hat accumulates over the whole record, so
+    # the drift is taken relative to the starting sample: the output starts
+    # aligned with the input wherever in the channel it starts.  A negative
+    # drift delays the signal, so the output gets enough extra samples to hold
+    # the largest delay in the window.
+    buffer = 0
+    if "phi_hat" in channel:
+        phi_all = np.array(channel["phi_hat"])[:, array_index]
+        phi_window = phi_all[start : start + T + L] - phi_all[start]
+        buffer = max(0, int(np.ceil(-phi_window.min() / (2 * np.pi * fc) * fs_delay)))
+    n_out = T + L + buffer
+
     # Convolution
-    buffer = np.zeros((L - 1,))
-    baseband = np.concatenate((buffer, baseband, buffer))
-    output = np.zeros((T + L, M), dtype=complex)
+    zero_pad = np.zeros((L - 1,))
+    baseband = np.concatenate((zero_pad, baseband, zero_pad))
+    output = np.zeros((n_out, M), dtype=complex)
     channel_time = np.arange(h_hat_real.shape[0]) / fs_time
-    signal_time = np.arange(start, start + T + L) / fs_delay
+    signal_time = np.arange(start, start + n_out) / fs_delay
 
     # Sliding windows of baseband: row t is baseband[t : t+L]. This does not
     # depend on the array element, so build it once outside the loop.
@@ -121,10 +140,12 @@ def replay(input, fs, array_index, channel, start=None):
         conv = np.einsum("tl,tl->t", ir[:ntc], bw)
 
         if "phi_hat" in channel:
-            # Delay tracking: phase + delay re-insertion
-            phi_hat = np.array(channel["phi_hat"])[:, array_index[m]]
+            # Delay tracking: phase + delay re-insertion, relative to start
+            phi_hat = phi_all[:, m] - phi_all[start, m]
             output[:ntc, m] = conv * np.exp(1j * phi_hat[start : start + ntc])
-            drift = phi_hat[np.arange(start, start + T + L)] / (2 * np.pi * fc)
+            # Past the end of phi_hat, hold its last value.
+            idx = np.minimum(np.arange(start, start + n_out), phi_hat.shape[0] - 1)
+            drift = phi_hat[idx] / (2 * np.pi * fc)
             # Disable extrapolation (fill out-of-domain samples with 0), matching
             # interp1(..., 'spline', 0) in the MATLAB implementation.
             interp = CubicSpline(signal_time, output[:, m], extrapolate=False)(
