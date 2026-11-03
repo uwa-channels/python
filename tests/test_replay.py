@@ -77,7 +77,6 @@ def build_channel(p):
     v_const = p["v_const"]
     v_amp = p["v_amp"]
     n_cycles = p["n_cycles"]
-    has_f_resamp = p.get("has_f_resamp", False)
 
     # Cumulative delay at snapshot times
     dtau_snap = (v_const / C) * t_snapshots
@@ -89,24 +88,20 @@ def build_channel(p):
     phi = -2 * np.pi * p["fc"] * (v_const / C) * t_delay
     phi_sin = np.zeros_like(t_delay)
     if n_cycles > 0:
-        phi_sin = p["fc"] * v_amp * T_ch / (C * n_cycles) * (np.cos(omega_osc * t_delay) - 1)
+        phi_sin = (
+            p["fc"] * v_amp * T_ch / (C * n_cycles) * (np.cos(omega_osc * t_delay) - 1)
+        )
         phi = phi + phi_sin
 
     # Build h_hat
     L = int(np.ceil(p["fs_delay"] * p["Tmp"] * 1.5))
     has_motion = (v_const != 0) or (v_amp != 0)
 
-    # With f_resamp, bulk drift from v_const is absorbed by resampling;
-    # h_hat drifts only with the residual sway.
-    dtau_h = dtau_snap.copy()
-    if has_f_resamp:
-        dtau_h = dtau_snap - (v_const / C) * t_snapshots
-
     if p["tracking"] == "theta" and has_motion:
         h_hat = np.zeros((N_time, p["M"], L), dtype=complex)
         for k in range(N_time):
             h_hat[k, :, :] = place_taps(
-                L, p["M"], path_delay_0 + dtau_h[k], c_p, p["Tmp"], p["fs_delay"]
+                L, p["M"], path_delay_0 + dtau_snap[k], c_p, p["Tmp"], p["fs_delay"]
             )
     else:
         h_hat_static = place_taps(L, p["M"], path_delay_0, c_p, p["Tmp"], p["fs_delay"])
@@ -123,16 +118,11 @@ def build_channel(p):
         "version": np.array([[1.0]]),
     }
 
-    # When f_resamp is present, tracking fields carry only the residual phase.
-    phi_tracking = phi_sin if has_f_resamp else phi
-    phi_2d = np.tile(phi_tracking[:, None], (1, p["M"]))
+    phi_2d = np.tile(phi[:, None], (1, p["M"]))
     if p["tracking"] == "theta":
         channel["theta_hat"] = phi_2d
     elif p["tracking"] == "phi":
         channel["phi_hat"] = phi_2d
-
-    if has_f_resamp:
-        channel["f_resamp"] = np.array([[1.0 / (1.0 + v_const / C)]])
 
     return channel, path_delay_0, path_gain, phi, has_motion, t_snapshots, t_delay, L
 
@@ -387,61 +377,6 @@ PARAMS = [
         "v_amp": 1.2,
         "n_cycles": 3,
     },
-    # Watermark (f_resamp)
-    {
-        "label": "watermark_f_resamp_only",
-        "fc": 15e3,
-        "fs_delay": 16e3,
-        "fs_time": 20,
-        "M": 3,
-        "n_path": 10,
-        "R": 4e3,
-        "Tmp": 20e-3,
-        "coeff": 1,
-        "d": 0.5,
-        "channel_time": 5,
-        "tracking": "none",
-        "has_f_resamp": True,
-        "v_const": 2,
-        "v_amp": 0,
-        "n_cycles": 0,
-    },
-    {
-        "label": "watermark_f_resamp_theta",
-        "fc": 15e3,
-        "fs_delay": 16e3,
-        "fs_time": 100,
-        "M": 3,
-        "n_path": 10,
-        "R": 4e3,
-        "Tmp": 20e-3,
-        "coeff": 1,
-        "d": 0.5,
-        "channel_time": 5,
-        "tracking": "theta",
-        "has_f_resamp": True,
-        "v_const": 2,
-        "v_amp": 1,
-        "n_cycles": 3,
-    },
-    {
-        "label": "watermark_f_resamp_phi",
-        "fc": 15e3,
-        "fs_delay": 16e3,
-        "fs_time": 20,
-        "M": 3,
-        "n_path": 10,
-        "R": 4e3,
-        "Tmp": 20e-3,
-        "coeff": 1,
-        "d": 0.5,
-        "channel_time": 5,
-        "tracking": "phi",
-        "has_f_resamp": True,
-        "v_const": 2,
-        "v_amp": -1,
-        "n_cycles": 3,
-    },
 ]
 
 
@@ -451,7 +386,9 @@ def test_replay_function(params):
     fs = FS
     start = START
 
-    channel, path_delay_0, path_gain, phi, has_motion, t_snapshots, t_delay, L = build_channel(p)
+    channel, path_delay_0, path_gain, phi, has_motion, t_snapshots, t_delay, L = (
+        build_channel(p)
+    )
 
     # Get phase field for compensation
     if p["tracking"] == "theta":
@@ -460,11 +397,6 @@ def test_replay_function(params):
         phi_field = channel["phi_hat"]
     else:
         phi_field = np.zeros((len(t_delay), p["M"]))
-
-    if p.get("has_f_resamp", False):
-        f_resamp_val = channel["f_resamp"][0, 0]
-        ramp = (1.0 / f_resamp_val - 1) * 2 * np.pi * p["fc"] * t_delay
-        phi_field = phi_field + ramp[:, None]
 
     # Transmit signal
     data_symbols = np.random.randint(2, size=(4095,)) * 2 - 1
@@ -516,11 +448,21 @@ def test_replay_function(params):
     v_inst = -dphi / (dt * 2 * np.pi * p["fc"]) * C
     t_speed = np.arange(len(v_inst)) / p["fs_delay"]
     ax_speed.plot(t_speed, v_inst)
+    # A constant speed differs from sample to sample only by rounding error
+    # (~1e-12 m/s); a span of at least 1 m/s keeps the axis from zooming in.
+    v_mid = (v_inst.max() + v_inst.min()) / 2
+    v_half = max(0.55 * (v_inst.max() - v_inst.min()), 0.5)
+    ax_speed.set_ylim(v_mid - v_half, v_mid + v_half)
     ax_speed.axvline(t_replay_start, color="r", linestyle="--", linewidth=1.5)
     ax_speed.axvline(t_replay_end, color="r", linestyle="--", linewidth=1.5)
     ax_speed.set_xlabel("Time [s]")
     ax_speed.set_ylabel("Speed [m/s]")
-    ax_speed.set_title(r"Instantaneous speed (from $\phi$)")
+    ax_speed.set_title(
+        "Instantaneous speed "
+        + {"theta": r"(from $\theta$)", "phi": r"(from $\phi$)"}.get(
+            p["tracking"], "(no tracking field)"
+        )
+    )
     ax_speed.grid(True)
 
     # (bottom) Ground truth stems + Cross-correlation
@@ -586,7 +528,7 @@ def test_replay_function(params):
         # probe carry sidelobe noise of about 1/sqrt(4095) per path,
         # which is a property of the probe, not of replay; folding the
         # estimated gains into the criterion lets that noise dominate
-        # for dense channels (e.g. the watermark cases).
+        # for dense channels.
         n_found = len(peaks)
         if n_found == p["n_path"]:
             est_delays = np.sort(lags_win[peaks] / fs)
@@ -594,9 +536,7 @@ def test_replay_function(params):
             true_gains = path_gain[np.argsort(path_delay_0[:, m]), m]
 
             tol = 2e-4 * p["n_path"]
-            criteria[m] = (
-                np.sum(np.abs(est_delays - true_delays) * true_gains) < tol
-            )
+            criteria[m] = np.sum(np.abs(est_delays - true_delays) * true_gains) < tol
 
     ax_xcor.set_xlabel("Delay [ms]")
     ax_xcor.set_ylabel("Path gain / |Xcorr|")
@@ -634,7 +574,6 @@ def test_replay_basic():
     assert output.shape[1] == 5  # all channels in h_hat
     assert output.shape[0] > 0
     assert np.isfinite(output).all()
-
 
 
 def drift_channel(fc, fs_delay, n_time, L, rate):
@@ -710,20 +649,22 @@ def test_output_length():
 
     channel = drift_channel(fc, fs_delay, 400, L, rate)
     n = replay(x, fs, [0], channel, start=1000).shape[0]
-    assert n == (T + L + int(np.ceil(rate * (T + L - 1)))) * up, "phi_hat, growing delay"
+    assert (
+        n == (T + L + int(np.ceil(rate * (T + L - 1)))) * up
+    ), "phi_hat, growing delay"
 
     channel = drift_channel(fc, fs_delay, 400, L, -rate)
-    assert replay(x, fs, [0], channel, start=1000).shape[0] == (T + L) * up, (
-        "phi_hat, shrinking delay"
-    )
+    assert (
+        replay(x, fs, [0], channel, start=1000).shape[0] == (T + L) * up
+    ), "phi_hat, shrinking delay"
 
     channel["theta_hat"] = channel.pop("phi_hat")
     assert replay(x, fs, [0], channel, start=1000).shape[0] == (T + L) * up, "theta_hat"
 
     del channel["theta_hat"]
-    assert replay(x, fs, [0], channel, start=1000).shape[0] == (T + L) * up, (
-        "no tracking"
-    )
+    assert (
+        replay(x, fs, [0], channel, start=1000).shape[0] == (T + L) * up
+    ), "no tracking"
 
 
 def test_random_start_stays_in_range():
@@ -734,10 +675,10 @@ def test_random_start_stays_in_range():
     h_hat and errors, and so would one before the first.
     """
     fs, fc, fs_delay, fs_time, L = 96e3, 13e3, 8e3, 20.0, 64
-    n_time = 40                                     # 2 s of channel
+    n_time = 40  # 2 s of channel
     channel = drift_channel(fc, fs_delay, n_time, L, 2e-3)
     T_max = int(n_time / fs_time * fs_delay)
-    T = T_max - L - 5                               # 5 valid starts
+    T = T_max - L - 5  # 5 valid starts
     x = np.random.randn(int(T * fs / fs_delay))
     for _ in range(200):
         assert np.isfinite(replay(x, fs, [0], channel)).all()
@@ -826,6 +767,198 @@ def test_replay_power():
     print(f"test_replay_power: per-channel output power mean = {mean_var:.3f}")
     assert mean_var > 0.93, f"Mean output power {mean_var:.3f} is unexpectedly small."
     assert mean_var < 1.07, f"Mean output power {mean_var:.3f} is unexpectedly large."
+
+
+# ---------------------------------------------------------------------------
+# f_resamp with one factor per hydrophone (Watermark)
+# ---------------------------------------------------------------------------
+
+
+def static_array_channel(taps_per_element, fs_delay, fs_time, fc, n_time, L):
+    """A static channel; column m of taps_per_element is element m's CIR."""
+    taps = np.asarray(taps_per_element, dtype=complex)  # (L, M)
+    h = np.tile(taps.T[None, :, :], (n_time, 1, 1))  # (T, M, L)
+    return {
+        "h_hat": {"real": h.real, "imag": h.imag},
+        "params": {
+            "fs_delay": np.array([[fs_delay]]),
+            "fs_time": np.array([[fs_time]]),
+            "fc": np.array([[fc]]),
+        },
+        "version": np.array([[1.0]]),
+    }
+
+
+def test_vector_f_resamp():
+    """Each column of a vector-f_resamp replay is that element replayed alone.
+
+    f_resamp may hold one factor per hydrophone.  Column k must then equal a
+    replay through hydrophone array_index[k] alone with its factor as a
+    scalar, zero-padded to the longest column.  A vector of equal factors must
+    give the same output as the scalar, and array_index must pick the factors
+    of the hydrophones it selects, in its order.
+    """
+    fs, fc, fs_delay, fs_time, L, n_time, M = 48e3, 12e3, 10e3, 20.0, 64, 100, 3
+    taps = np.zeros((L, M), dtype=complex)
+    taps[9, 0] = 1
+    taps[[11, 29], 1] = [0.8, 0.4j]
+    taps[[7, 20, 39], 2] = [1, -0.5, 0.3j]
+    channel = static_array_channel(taps, fs_delay, fs_time, fc, n_time, L)
+    t = np.arange(int(n_time / fs_time * fs_delay)) / fs_delay
+    channel["phi_hat"] = np.tile((-2 * np.pi * fc * 1e-4 * t)[:, None], (1, M))
+
+    n = int(0.5 * fs)
+    x = np.cos(2 * np.pi * fc * np.arange(n) / fs) * np.hanning(n)
+    f_resamp = 1 / (1 + np.array([2e-3, -1e-3, 4e-3]))
+    channel["f_resamp"] = f_resamp[:, None]
+
+    for array_index in ([0, 1, 2], [2, 0]):
+        r = replay(x, fs, array_index, channel, start=START)
+        lengths = []
+        for k, m in enumerate(array_index):
+            single = static_array_channel(
+                taps[:, [m]], fs_delay, fs_time, fc, n_time, L
+            )
+            single["phi_hat"] = channel["phi_hat"][:, [m]]
+            single["f_resamp"] = np.array([[f_resamp[m]]])
+            r_m = replay(x, fs, [0], single, start=START)[:, 0]
+            lengths.append(len(r_m))
+            err = np.max(np.abs(r[: len(r_m), k] - r_m)) / np.max(np.abs(r_m))
+            assert err < 1e-10, (
+                f"column {k} (hydrophone {m}) of replay(..., {array_index}, ...) "
+                f"differs from hydrophone {m} replayed alone with f_resamp = "
+                f"{f_resamp[m]:.6f} (relative err = {err:.2e})"
+            )
+            assert np.all(r[len(r_m) :, k] == 0), f"column {k} is not zero-padded"
+        assert r.shape[0] == max(lengths), "output is not as long as its longest column"
+        assert len(set(lengths)) > 1, "the factors are too close to change the lengths"
+
+    # Equal factors as a row vector give the scalar result.
+    channel["f_resamp"] = np.array([[f_resamp[0]]])
+    r_scalar = replay(x, fs, [0, 1, 2], channel, start=START)
+    channel["f_resamp"] = np.full((1, M), f_resamp[0])
+    r_vector = replay(x, fs, [0, 1, 2], channel, start=START)
+    assert r_vector.shape == r_scalar.shape
+    assert np.max(np.abs(r_vector - r_scalar)) / np.max(np.abs(r_scalar)) < 1e-12
+
+
+def burst_peaks(r):
+    """Sample indices of the two burst peaks in r, one in each half of it."""
+    env = np.abs(sg.hilbert(r))
+    half = len(env) // 2
+    return np.array([np.argmax(env[:half]), half + np.argmax(env[half:])])
+
+
+def test_vector_f_resamp_shared_cir():
+    """Same CIR on every hydrophone, different f_resamp: each column stretches.
+
+    Any difference between the outputs comes from f_resamp alone.  replay
+    resamples column m by f_resamp[m], which stretches it in time by that
+    factor: a column is f_resamp[m] times as long as without it, and two
+    events D seconds apart come out f_resamp[m] * D apart.  The input is two
+    short bursts at fc, 0.4 s apart.  The figure shows each whole column with
+    its end marked, and the second burst with where it falls without f_resamp
+    (dashed) and how far f_resamp moves it.
+    """
+    fs, fc, fs_delay, fs_time, L, n_time, M = 48e3, 12e3, 8e3, 20.0, 64, 100, 3
+    taps = np.zeros(L, dtype=complex)
+    taps[[9, 17, 29]] = [1, 0.5 - 0.3j, 0.25j]
+    channel = static_array_channel(
+        np.tile(taps[:, None], (1, M)), fs_delay, fs_time, fc, n_time, L
+    )
+
+    b = int(2e-3 * fs)
+    burst = np.cos(2 * np.pi * fc * np.arange(b) / fs) * np.hanning(b)
+    x = np.zeros(int(0.5 * fs))
+    n1, D = int(0.05 * fs), 0.4
+    x[n1 : n1 + b] = burst
+    x[n1 + int(D * fs) : n1 + int(D * fs) + b] = burst
+
+    r0 = replay(x, fs, [0], channel, start=START)[:, 0]
+    q0, len0 = burst_peaks(r0), len(r0)
+
+    excess = np.array([1e-2, -1e-2, -3e-2])  # 1 / f_resamp - 1
+    f_resamp = 1 / (1 + excess)
+    channel["f_resamp"] = f_resamp[None, :]
+    r = replay(x, fs, np.arange(M), channel, start=START)
+
+    fig, axes = plt.subplots(M, 2, figsize=(14, 8))
+    lengths = []
+    for m in range(M):
+        single = static_array_channel(taps[:, None], fs_delay, fs_time, fc, n_time, L)
+        single["f_resamp"] = np.array([[f_resamp[m]]])
+        lengths.append(len(replay(x, fs, [0], single, start=START)))
+        q = burst_peaks(r[: lengths[m], m])
+
+        assert abs(lengths[m] - len0 * f_resamp[m]) < 2, (
+            f"hydrophone {m}: the column is {lengths[m]} samples long, not "
+            f"f_resamp * {len0} = {len0 * f_resamp[m]:.1f}"
+        )
+        assert abs(np.diff(q)[0] - np.diff(q0)[0] * f_resamp[m]) < 2, (
+            f"hydrophone {m}: the bursts are {np.diff(q)[0]} samples apart, not "
+            f"f_resamp * {np.diff(q0)[0]} = {np.diff(q0)[0] * f_resamp[m]:.1f}"
+        )
+
+        env = np.abs(sg.hilbert(r[:, m]))
+        env /= env.max()
+        t = np.arange(len(env)) / fs
+
+        ax = axes[m, 0]
+        ax.plot(t, env, lw=0.8)
+        ax.axvline(lengths[m] / fs, color="r", lw=1.5)
+        ax.axvline(len0 / fs, color="0.5", ls="--", lw=1.5)
+        ax.set_xlim(0, r.shape[0] / fs * 1.02)
+        ax.set_ylim(0, 1.1)
+        ax.set_ylabel("|r|")
+        ax.grid(True)
+        ax.set_title(
+            f"Hydrophone {m}: f_resamp = 1/(1{excess[m]:+.0e}), "
+            f"length {lengths[m]} ({len0} without)"
+        )
+
+        ax = axes[m, 1]
+        shift = (q[1] - q0[1]) / fs * 1e3
+        ax.plot(t * 1e3, env, lw=0.8)
+        ax.axvline(q0[1] / fs * 1e3, color="0.5", ls="--", lw=1.5)
+        ax.axvline(q[1] / fs * 1e3, color="r", lw=0.8)
+        ax.plot(np.array([q0[1], q[1]]) / fs * 1e3, [1.05, 1.05], "r-", lw=2)
+        ax.text(
+            (q0[1] + q[1]) / 2 / fs * 1e3,
+            0.85,
+            f"{shift:+.2f} ms",
+            color="r",
+            ha="center",
+            fontweight="bold",
+        )
+        ax.set_xlim(q0[1] / fs * 1e3 - 8, q0[1] / fs * 1e3 + 20)
+        ax.set_ylim(0, 1.15)
+        ax.grid(True)
+        ax.set_title(f"Second burst moves by {shift:+.2f} ms")
+    axes[-1, 0].set_xlabel("Time [s]")
+    axes[-1, 1].set_xlabel("Time [ms]")
+    fig.suptitle(
+        "Same CIR, different f_resamp: each column is stretched by its own "
+        "factor (dashed: without f_resamp)"
+    )
+    fig.tight_layout()
+    plt.savefig("test_replay_vector_f_resamp.png", dpi=150)
+    plt.close(fig)
+
+    assert len(set(lengths)) == M, "the columns should all have different lengths"
+    assert r.shape[0] == max(lengths), "output is not as long as its longest column"
+
+
+@pytest.mark.parametrize(
+    "f_resamp", [[1.0, 1.0], [1.0, -1.0, 1.0], [1.0, np.nan, 1.0], [0.0]]
+)
+def test_f_resamp_checked(f_resamp):
+    """A vector f_resamp needs one positive, finite factor per hydrophone."""
+    channel = drift_channel(13e3, 8e3, 40, 64, 1e-4)
+    channel["h_hat"] = {k: np.tile(v, (1, 3, 1)) for k, v in channel["h_hat"].items()}
+    channel["phi_hat"] = np.tile(channel["phi_hat"], (1, 3))
+    channel["f_resamp"] = np.array([f_resamp])
+    with pytest.raises(ValueError, match="f_resamp"):
+        replay(np.random.randn(int(0.1 * 96e3)), 96e3, [0], channel, start=1000)
 
 
 if __name__ == "__main__":

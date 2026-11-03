@@ -3,6 +3,8 @@ from scipy.interpolate import CubicSpline, PchipInterpolator
 import scipy.signal as sg
 from fractions import Fraction
 
+from .replay import validate_f_resamp
+
 
 def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     """
@@ -16,7 +18,9 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
         h_hat is static. Both phase and delay drift are re-inserted.
       f_resamp:
         Adds a linear phase ramp. Its delay contribution is always
-        re-inserted via interpolation.
+        re-inserted via interpolation.  A scalar applies to every
+        hydrophone; a vector holds one factor per hydrophone in the file
+        and is indexed by array_index.
 
     Parameters:
     -----------
@@ -33,7 +37,9 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
         - "params" : dict with "fs_delay", "fs_time", "fc"
         - "theta_hat" : ndarray, optional (phase only)
         - "phi_hat" : ndarray, optional (phase + delay)
-        - "f_resamp" : float, optional
+        - "f_resamp" : float or ndarray, optional (one factor, or one per
+          hydrophone in the file)
+        - "version" : ndarray, at least 1.0
 
     buffer_left : float, optional
         Left buffer fraction. Default is 0.1.
@@ -46,6 +52,14 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
     ndarray
         Unpacked channel (delay_samples, num_elements, time_samples).
 
+    Raises:
+    -------
+    ValueError
+        If the channel version is below 1.0, fs is not a positive finite
+        scalar, array_index is empty, not integer, repeated or out of range,
+        a buffer is negative or not a finite scalar, or f_resamp is not
+        positive and finite with one factor or one per hydrophone.
+
     Revision history:
       - Apr.  1, 2025: Initial release.
       - Feb. 27, 2026: Fixed delay insertion for theta_hat vs phi_hat.
@@ -55,7 +69,16 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
                        eliminate FIR edge-effect ripples.
       - Oct. 27, 2026: phi_hat takes precedence over theta_hat when a channel
                        carries both, as in replay; their phases used to add.
+      - Nov.  3, 2026: f_resamp may be a vector with one factor per
+                       hydrophone in the file, indexed by array_index; each
+                       hydrophone gets its own phase ramp and delay drift.
+                       Added validate_inputs, which checks the channel
+                       version, fs, array_index, the buffers and f_resamp
+                       before unpacking, as in the MATLAB toolbox.
     """
+
+    array_index = np.atleast_1d(array_index)
+    validate_inputs(fs, array_index, channel, buffer_left, buffer_right)
 
     ## Parameters
     fs_delay = channel["params"]["fs_delay"][0, 0]
@@ -80,8 +103,12 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
         phase_all += np.array(channel["theta_hat"])[:, array_index]
 
     if "f_resamp" in channel:
+        # One factor per hydrophone in the file, or one for all of them.
+        f_resamp = np.ravel(np.asarray(channel["f_resamp"], dtype=float))
+        if f_resamp.size > 1:
+            f_resamp = f_resamp[array_index]
         f_resamp_phase = (
-            (1 / channel["f_resamp"][0, 0] - 1)
+            (1 / f_resamp[None, :] - 1)
             * 2
             * np.pi
             * fc
@@ -130,22 +157,74 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
         t_new = np.arange(h_resampled.shape[0]) / fs
 
         if has_phase:
-            phase_resampled = PchipInterpolator(t_orig, phase_all[:, m], extrapolate=True)(t_new)
+            phase_resampled = PchipInterpolator(
+                t_orig, phase_all[:, m], extrapolate=True
+            )(t_new)
             h_resampled = h_resampled * np.exp(1j * phase_resampled)[:, None]
 
         if has_drift:
-            drift_resampled = PchipInterpolator(t_orig, phase_drift[:, m], extrapolate=True)(t_new)
+            drift_resampled = PchipInterpolator(
+                t_orig, phase_drift[:, m], extrapolate=True
+            )(t_new)
             drift = drift_resampled / (2 * np.pi * fc)
             for t in range(h_resampled.shape[0]):
-                cs_re = CubicSpline(delays, np.real(h_resampled[t, :]), extrapolate=False)
+                cs_re = CubicSpline(
+                    delays, np.real(h_resampled[t, :]), extrapolate=False
+                )
                 h_re = np.nan_to_num(cs_re(delays + drift[t]), nan=0.0)
-                cs_im = CubicSpline(delays, np.imag(h_resampled[t, :]), extrapolate=False)
+                cs_im = CubicSpline(
+                    delays, np.imag(h_resampled[t, :]), extrapolate=False
+                )
                 h_im = np.nan_to_num(cs_im(delays + drift[t]), nan=0.0)
                 h_resampled[t, :] = h_re + 1j * h_im
 
         unpacked_channel[:, m, :] = h_resampled.T
 
     return unpacked_channel
+
+
+def validate_inputs(fs, array_index, channel, buffer_left, buffer_right):
+    """Raise ValueError if an input to unpack is invalid."""
+    version = np.asarray(channel["version"], dtype=float).ravel()[0]
+    if not version >= 1.0:
+        raise ValueError(
+            "The minimum version of the channel matrix is 1.0, "
+            f"and you have {version:.1f}."
+        )
+
+    if not _is_real_scalar(fs) or not fs > 0:
+        raise ValueError("fs must be a positive, finite scalar.")
+
+    N = np.asarray(channel["h_hat"]["real"]).shape[1]
+    index = np.asarray(array_index)
+    if (
+        index.size == 0
+        or not np.issubdtype(index.dtype, np.number)
+        or not np.all(index == np.round(index))
+    ):
+        raise ValueError("array_index must be integers.")
+    if len(np.unique(index)) != index.size:
+        raise ValueError("array_index must not contain duplicate indices.")
+    if index.min() < 0 or index.max() >= N:
+        raise ValueError(f"array_index must be valid channel indices in [0, {N}).")
+
+    for buffer in (buffer_left, buffer_right):
+        if not _is_real_scalar(buffer) or not buffer >= 0:
+            raise ValueError("The buffers must be non-negative, finite scalars.")
+
+    if "f_resamp" in channel:
+        validate_f_resamp(channel["f_resamp"], N)
+
+
+def _is_real_scalar(x):
+    """True for a finite real number, or an array holding exactly one."""
+    x = np.asarray(x)
+    return (
+        x.ndim == 0
+        and np.issubdtype(x.dtype, np.number)
+        and np.isrealobj(x)
+        and bool(np.isfinite(x))
+    )
 
 
 # [EOF]

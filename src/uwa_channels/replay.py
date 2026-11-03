@@ -41,8 +41,12 @@ def replay(input, fs, array_index, channel, start=None):
             Phase estimates (phase tracking only, no delay compensation).
         - "phi_hat" : ndarray, optional
             Phase estimates (delay tracking: phase + delay compensation).
-        - "f_resamp" : float, optional
-            Factor for additional passband resampling.
+        - "f_resamp" : float or ndarray, optional
+            Factor for additional passband resampling.  A scalar applies to
+            every hydrophone; a vector holds one factor per hydrophone in the
+            file, in the order of the second axis of h_hat, and is indexed by
+            array_index.  Each output column is resampled by its own factor,
+            and the shorter columns are zero-padded to the longest.
 
     start : int, optional
         Starting index for signal propagation. If None, a random point is chosen.
@@ -64,6 +68,11 @@ def replay(input, fs, array_index, channel, start=None):
                        off.  The output gets extra samples sized to the
                        largest delay in the window, as in the MATLAB toolbox,
                        so the two return the same length.
+      - Nov.  3, 2026: f_resamp may be a vector with one factor per
+                       hydrophone in the file, indexed by array_index; a
+                       scalar still applies to all of them.  Each column is
+                       resampled by its own factor and the shorter ones are
+                       zero-padded to the longest, as in the MATLAB toolbox.
     """
 
     # Validate inputs
@@ -166,12 +175,26 @@ def replay(input, fs, array_index, channel, start=None):
         output * np.exp(2j * np.pi * fc * np.arange(len(output))[:, None] / fs)
     )
 
-    # Resample in passband if needed
+    # Bulk resampling, one factor per hydrophone.  f_resamp holds one factor
+    # for every hydrophone in the file, or a single factor for all of them.
+    # The factors differ, so the columns come out with different lengths; the
+    # shorter ones are zero-padded to the longest.
     if "f_resamp" in channel:
-        frac_resample = Fraction(channel["f_resamp"][0, 0]).limit_denominator()
-        output = sg.resample_poly(
-            output, frac_resample.numerator, frac_resample.denominator
-        )
+        f_resamp = np.ravel(np.asarray(channel["f_resamp"], dtype=float))
+        if f_resamp.size > 1:
+            f_resamp = f_resamp[array_index]
+        f_resamp = np.broadcast_to(f_resamp, (M,))
+        columns = []
+        for m in range(M):
+            frac_resample = Fraction(float(f_resamp[m])).limit_denominator()
+            columns.append(
+                sg.resample_poly(
+                    output[:, m], frac_resample.numerator, frac_resample.denominator
+                )
+            )
+        output = np.zeros((max(len(c) for c in columns), M))
+        for m, column in enumerate(columns):
+            output[: len(column), m] = column
 
     return output
 
@@ -199,6 +222,27 @@ def validate_inputs(input, fs, array_index, channel):
     assert (
         array_index.min() >= 0 and array_index.max() < N
     ), f"array_index must be valid channel indices in [0, {N})."
+
+    # Check the resampling factors
+    if "f_resamp" in channel:
+        validate_f_resamp(channel["f_resamp"], N)
+
+
+def validate_f_resamp(f_resamp, N):
+    """Raise ValueError unless f_resamp is one positive, finite factor or N."""
+    f = np.asarray(f_resamp)
+    if not (
+        np.issubdtype(f.dtype, np.number)
+        and np.isrealobj(f)
+        and np.all(np.isfinite(f))
+        and np.all(f > 0)
+    ):
+        raise ValueError("f_resamp must be positive and finite.")
+    if f.size not in (1, N):
+        raise ValueError(
+            f"f_resamp must be a scalar or have one factor per hydrophone ({N}), "
+            f"not {f.size}."
+        )
 
 
 # [EOF]
