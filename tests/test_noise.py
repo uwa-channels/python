@@ -301,9 +301,9 @@ def test_option2_rms_scaling():
     expected = np.sum(noise["beta"] ** 2, axis=(1, 2))
 
     assert abs(total_var - M) / M < 0.15, f"sum(var) = {total_var:.2f}, expected ~{M}"
-    assert np.allclose(np.var(w, axis=0), expected, rtol=0.1), (
-        f"per-channel power {np.var(w, axis=0)} should follow beta, {expected}"
-    )
+    assert np.allclose(
+        np.var(w, axis=0), expected, rtol=0.1
+    ), f"per-channel power {np.var(w, axis=0)} should follow beta, {expected}"
 
 
 def test_option2_bandpass():
@@ -425,9 +425,9 @@ def test_option3_rms_scaling():
 
     total_pp = sum(_pseudo_power(w[:, m], alpha) for m in range(M))
 
-    assert abs(total_pp - M) / M < 0.15, (
-        f"sum(pseudo-power) = {total_pp:.2f}, expected ~{M}"
-    )
+    assert (
+        abs(total_pp - M) / M < 0.15
+    ), f"sum(pseudo-power) = {total_pp:.2f}, expected ~{M}"
 
 
 def test_option3_resampling():
@@ -667,9 +667,9 @@ def test_mixing_sas_characteristic_function(alpha):
     for t in (0.5, 1.0, 2.0):
         phi = np.mean(np.cos(t * w))
         expected = np.exp(-abs(t / np.sqrt(2)) ** alpha)
-        assert abs(phi - expected) < 0.01, (
-            f"alpha={alpha}, t={t}: E[cos(tw)] = {phi:.4f}, expected {expected:.4f}"
-        )
+        assert (
+            abs(phi - expected) < 0.01
+        ), f"alpha={alpha}, t={t}: E[cos(tw)] = {phi:.4f}, expected {expected:.4f}"
 
 
 def test_mixing_resampling_changes_content():

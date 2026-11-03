@@ -109,11 +109,12 @@ def fetch(name):
     url = f"https://zenodo.org/api/records/{ZENODO_RECORD}/files/{name}/content"
 
     try:
-        # nosec B310: url is the https literal above with a file name appended.
-        with urllib.request.urlopen(url, timeout=_TIMEOUT) as response:
+        # url is the https literal above with a file name appended, so no
+        # file:/ or custom scheme can reach urlopen.
+        with urllib.request.urlopen(url, timeout=_TIMEOUT) as response:  # nosec B310
             with open(part, "wb") as handle:
                 shutil.copyfileobj(response, handle, _CHUNK)
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+    except (urllib.error.URLError, OSError) as exc:  # TimeoutError is an OSError
         part.unlink(missing_ok=True)
         pytest.skip(f"cannot download {name} from Zenodo ({exc})")
 
@@ -182,5 +183,6 @@ def channel_path():
 @pytest.fixture(scope="session")
 def noise_path():
     return fetch(NOISE_FILE)
+
 
 # [EOF]

@@ -131,7 +131,6 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
 
     ## Sample rate conversion
     frac_1 = Fraction(fs / fs_time).limit_denominator()
-    frac_2 = Fraction(fs / fs_delay).limit_denominator()
     delays = np.arange(K) / fs_delay
 
     has_phase = "theta_hat" in channel or "phi_hat" in channel or "f_resamp" in channel

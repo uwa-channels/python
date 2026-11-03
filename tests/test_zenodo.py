@@ -669,13 +669,14 @@ def test_quick_start_runs_on_the_released_files(channel, noise, replayed):
     if beta.shape[0] != beta.shape[1]:
         beta = np.transpose(beta, (2, 1, 0))
     expected = np.sum(beta[ARRAY_INDEX] ** 2, axis=(1, 2))
-    assert np.allclose(np.var(w, axis=0), expected, rtol=0.25), (
-        f"noise power {np.var(w, axis=0)} should follow beta, {expected}"
-    )
+    assert np.allclose(
+        np.var(w, axis=0), expected, rtol=0.25
+    ), f"noise power {np.var(w, axis=0)} should follow beta, {expected}"
 
     snr = 10 * np.log10(signal / (scale**2 * np.var(w, axis=0)))
     expected = 10 * np.log10(np.var(r - scale * w, axis=0) / np.var(scale * w, axis=0))
     assert np.allclose(snr, expected, atol=0.1)
     print(f"  SNR at {scale:g} x noise: {np.round(snr, 1)} dB")
+
 
 # [EOF]

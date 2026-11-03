@@ -87,8 +87,7 @@ def _validate_inputs(input_shape, noise, array_index):
     version = float(np.asarray(noise["version"]).ravel()[0])
     if version < 1.0:
         raise ValueError(
-            f"The minimum version of the noise dict is 1.0, "
-            f"and you have {version}."
+            f"The minimum version of the noise dict is 1.0, " f"and you have {version}."
         )
     if len(set(array_index)) != len(array_index):
         raise ValueError("array_index must contain unique entries.")
@@ -100,8 +99,7 @@ def _validate_inputs(input_shape, noise, array_index):
     M = np.asarray(noise["beta"]).shape[0]
     if max(array_index) >= M:
         raise ValueError(
-            f"max(array_index) ({max(array_index)}) must be less than "
-            f"M ({M})."
+            f"max(array_index) ({max(array_index)}) must be less than " f"M ({M})."
         )
 
 
@@ -169,11 +167,11 @@ def _noise_mixing(input_shape, fs, Fs, noise, array_index):
     else:
         z = levy_stable.rvs(alpha, 0, scale=1.0 / np.sqrt(2), size=(K + K_mix, M))
 
-    beta_sub = beta[array_index, :, :]   # (Nout, M, K_mix)
+    beta_sub = beta[array_index, :, :]  # (Nout, M, K_mix)
 
     w = np.zeros((K, len(array_index)))
     for k in range(K_mix):
-        w += z[k:k + K, :] @ beta_sub[:, :, k].T
+        w += z[k : k + K, :] @ beta_sub[:, :, k].T
 
     w = sg.resample_poly(w, frac.numerator, frac.denominator, axis=0)
     w = w[: input_shape[0], :]
