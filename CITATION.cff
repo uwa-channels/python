@@ -15,7 +15,7 @@ authors:
 repository-code: "https://github.com/uwa-channels/python"
 url: "https://uwa-channels.github.io"
 license: MIT
-version: "0.9.0"
+version: "0.10.0"
 keywords:
   - "underwater acoustics"
   - "underwater acoustic communication"
