@@ -6,7 +6,7 @@ from fractions import Fraction
 from .replay import validate_f_resamp
 
 
-def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
+def unpack(fs, array_index, channel, buffer_left=None, buffer_right=None):
     """
     Unpack an underwater acoustic channel.
 
@@ -42,10 +42,12 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
         - "version" : ndarray, at least 1.0
 
     buffer_left : float, optional
-        Left buffer fraction. Default is 0.1.
+        Left buffer, as a fraction of the number of taps.  By default, or
+        for None, just enough zeros to hold the largest delay drift, so a
+        channel without drift is not padded.
 
     buffer_right : float, optional
-        Right buffer fraction. Default is 0.1.
+        Right buffer, as buffer_left.
 
     Returns:
     --------
@@ -75,6 +77,8 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
                        Added validate_inputs, which checks the channel
                        version, fs, array_index, the buffers and f_resamp
                        before unpacking, as in the MATLAB toolbox.
+      - Nov.  4, 2026: The buffers default to the room the delay drift needs,
+                       instead of 0.1 each, and None asks for that default.
     """
 
     array_index = np.atleast_1d(array_index)
@@ -119,13 +123,17 @@ def unpack(fs, array_index, channel, buffer_left=0.1, buffer_right=0.1):
         phase_drift += f_resamp_phase
 
     ## Allocate buffer
+    # By default, room for the drift: a tap at delay tau moves to tau - drift, so
+    # a positive drift needs room on the left and a negative one on the right.
+    drift_samples = phase_drift / (2 * np.pi * fc) * fs_delay
+    n_left = int(np.ceil(max(drift_samples.max(), 0)))
+    n_right = int(np.ceil(max(-drift_samples.min(), 0)))
+    if buffer_left is not None:
+        n_left = int(np.ceil(K * buffer_left))
+    if buffer_right is not None:
+        n_right = int(np.ceil(K * buffer_right))
     h_hat = np.concatenate(
-        (
-            np.zeros((T, M, int(np.ceil(K * buffer_left)))),
-            h_hat,
-            np.zeros((T, M, int(np.ceil(K * buffer_right)))),
-        ),
-        axis=2,
+        (np.zeros((T, M, n_left)), h_hat, np.zeros((T, M, n_right))), axis=2
     )
     K = h_hat.shape[2]
 
@@ -208,7 +216,7 @@ def validate_inputs(fs, array_index, channel, buffer_left, buffer_right):
         raise ValueError(f"array_index must be valid channel indices in [0, {N}).")
 
     for buffer in (buffer_left, buffer_right):
-        if not _is_real_scalar(buffer) or not buffer >= 0:
+        if buffer is not None and (not _is_real_scalar(buffer) or not buffer >= 0):
             raise ValueError("The buffers must be non-negative, finite scalars.")
 
     if "f_resamp" in channel:

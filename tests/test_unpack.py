@@ -497,6 +497,20 @@ def test_vector_f_resamp():
 
     n_left = int(np.ceil(L * buf))
     delay_axis = (np.arange(u.shape[0]) - n_left) / fs_delay
+
+    # Without buffers, the padding is the largest drift on each side: 16 on
+    # the left and 48 on the right (more than the 39 of a 0.3 buffer).  Where
+    # the two overlap they must agree, and the 0.3 buffers must hold nothing
+    # to the left of the automatic padding.
+    n_phi = int(np.ceil(n_time * fs_delay / fs_time))
+    n_auto = int(np.ceil(excess.max() * (n_phi - 1)))
+    u_auto = unpack(fs_out, [0, 1, 2], channel)
+    assert u_auto.shape[0] == L + n_auto + int(np.ceil(-excess.min() * (n_phi - 1)))
+    skip = n_left - n_auto
+    n = u.shape[0] - skip
+    err = np.max(np.abs(u_auto[:n] - u[skip:])) / np.max(np.abs(u))
+    assert err < 1e-9, f"unpack without buffers differs from 0.3 buffers ({err:.2e})"
+    assert np.max(np.abs(u[:skip])) < 1e-9, "automatic padding drops energy"
     time_axis = np.arange(u.shape[2]) / fs_out
     T = time_axis[-1]
     tau0 = 39 / fs_delay
@@ -565,6 +579,9 @@ def test_valid_inputs_pass():
     channel = three_element_channel()
     assert np.all(np.isfinite(unpack(100.0, [0, 1, 2], channel)))
     assert np.all(np.isfinite(unpack(100, np.array([2, 0]), channel, 0, 0.5)))
+    assert np.all(np.isfinite(unpack(100, [0], channel, buffer_right=0.5)))
+    # No drift, so the automatic padding adds nothing.
+    assert unpack(100, [0], channel).shape[0] == 64
 
 
 @pytest.mark.parametrize(
