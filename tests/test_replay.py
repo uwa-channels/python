@@ -684,32 +684,42 @@ def test_random_start_stays_in_range():
         assert np.isfinite(replay(x, fs, [0], channel)).all()
 
 
-def test_replay_power():
-    """Two checks for the array_index API:
+@pytest.mark.parametrize("nsd", [1, 2], ids=["fullBand", "halfBand"])
+def test_replay_power(nsd):
+    """Two checks for the array_index API and the h_hat normalization:
 
     1. Isolation: replaying through a single hydrophone must equal the
        corresponding column of a replay through all hydrophones (same
        start). This holds only because output normalization was removed,
        so each channel is processed independently of the selected set.
-    2. Power: after normalizing the channel so the average per-channel
-       energy is 1 (cf. calib), a unit-variance passband input replays to
-       an output whose per-channel variance is O(1).
+    2. Power: a channel file estimated at N_s = fs_delay/R samples per
+       symbol holds a response confined to the signal band |f| <= R/2,
+       and its h_hat is normalized so that the energy over the taps and
+       all M hydrophones, averaged over time, is M/N_s.  A unit-power
+       passband signal of bandwidth R replayed through all M hydrophones
+       over the full length of the channel must then give output powers
+       that sum to M.  A subset of the hydrophones need not give a
+       proportional share of M, since their powers differ, and a short
+       signal need not give M, since it sees only part of the fading.
     """
     fs = FS
-    start = START
 
     fc = 12e3
-    fs_delay = 10e3
+    R = 4e3
+    fs_delay = nsd * R
     fs_time = 20
     M = 4
     n_path = 8
-    R = 4e3
     Tmp = 15e-3
     coeff = 1.5
     d = 0.5
     T_ch = 5
 
-    # Multipath geometry (static channel)
+    # Multipath geometry, with a Doppler shift on each path.  The shifts
+    # move the fades of the frequency response across the band during the
+    # channel, as fading does, so that a replay over the full length
+    # averages them.  A static channel keeps its fades, and its output
+    # power depends on where they fall.
     path_delay_0 = np.concatenate(
         ([0], np.sort(randsamples(np.arange(1, Tmp * 1e3) / 1e3, n_path - 1)))
     )[:, None]
@@ -718,17 +728,30 @@ def test_replay_power():
     path_delay_0 -= np.min(path_delay_0)
     path_gain = np.exp(-path_delay_0 * coeff / Tmp)
     c_p = path_gain * np.exp(-1j * 2 * np.pi * fc * path_delay_0)
+    f_doppler = 4 * (np.random.rand(n_path, 1) - 0.5)  # within +/- 2 Hz
 
     L = int(np.ceil(fs_delay * Tmp * 1.5))
     N_time = round(T_ch * fs_time)
-    h_hat_static = place_taps(L, M, path_delay_0, c_p, Tmp, fs_delay)
-    h_hat = np.tile(h_hat_static[None, :, :], (N_time, 1, 1))
+    h_hat = np.zeros((N_time, M, L), dtype=complex)
+    for k in range(N_time):
+        rotation = np.exp(2j * np.pi * f_doppler * k / fs_time)
+        h_hat[k] = place_taps(L, M, path_delay_0, c_p * rotation, Tmp, fs_delay)
 
-    # Normalize so the average per-channel energy is 1 (cf. calib)
-    T = h_hat.shape[0]
-    E_tot_avg = np.sum(np.abs(h_hat) ** 2) / T
-    alpha = np.sqrt(M / E_tot_avg)
-    h_hat = alpha * h_hat
+    # Confine the response to the signal band, as an estimate is.  The
+    # cutoff R/2 is 1/N_s of the Nyquist frequency fs_delay/2.
+    if nsd > 1:
+        n_fir = 64
+        h_hat = sg.lfilter(
+            sg.firwin(n_fir + 1, 1 / nsd),
+            1,
+            np.concatenate((h_hat, np.zeros((N_time, M, n_fir))), axis=2),
+            axis=2,
+        )
+    L = h_hat.shape[2]
+
+    # Normalize as the channel files are: energy M/N_s
+    E_avg = np.sum(np.abs(h_hat) ** 2) / N_time
+    h_hat = np.sqrt(M / nsd / E_avg) * h_hat
 
     channel = {
         "h_hat": {"real": np.real(h_hat), "imag": np.imag(h_hat)},
@@ -740,18 +763,29 @@ def test_replay_power():
         "version": np.array([[1.0]]),
     }
 
-    # Unit-variance passband probe
-    data_symbols = np.random.randint(2, size=(8192,)) * 2 - 1
-    baseband = sg.resample_poly(data_symbols, int(fs / R), 1)
+    # Unit-power passband probe in the signal band, as long as the channel.
+    # The probe is 0.9 R wide: with N_s = 1 the band fills the whole delay
+    # band, and the resampler in replay attenuates its edges, which would
+    # cost a probe of width R about 6% of its power.  replay needs T + L
+    # samples at fs_delay after the start, and the channel holds
+    # N_time / fs_time * fs_delay of them.
+    B = 0.9 * R
+    T_max = N_time / fs_time * fs_delay
+    n_sym = int(np.floor((T_max - L - 2) / fs_delay * B))
+    data_symbols = np.sign(np.random.randn(n_sym)) + 1j * np.sign(
+        np.random.randn(n_sym)
+    )
+    ratio = Fraction(fs / B).limit_denominator(1000)
+    baseband = sg.resample_poly(data_symbols, ratio.numerator, ratio.denominator)
     passband = np.real(
         baseband * np.exp(2j * np.pi * fc * np.arange(len(baseband)) / fs)
     )
-    passband = passband / np.std(passband)
+    passband = passband / np.sqrt(np.mean(passband**2))
 
-    # Replay one channel, and all channels, with the same start
+    # Replay one channel, and all channels, from the first sample
     target_ch = 2
-    r_single = replay(passband, fs, [target_ch], channel, start)
-    r_all = replay(passband, fs, np.arange(M), channel, start)
+    r_single = replay(passband, fs, [target_ch], channel, 0)
+    r_all = replay(passband, fs, np.arange(M), channel, 0)
 
     # Check 1: isolation
     n = min(r_single.shape[0], r_all.shape[0])
@@ -762,11 +796,17 @@ def test_replay_power():
         f"full replay (relative err = {err:.2e})."
     )
 
-    # Check 2: per-channel output power is O(1)
-    mean_var = np.mean(np.var(r_all, axis=0))
-    print(f"test_replay_power: per-channel output power mean = {mean_var:.3f}")
-    assert mean_var > 0.93, f"Mean output power {mean_var:.3f} is unexpectedly small."
-    assert mean_var < 1.07, f"Mean output power {mean_var:.3f} is unexpectedly large."
+    # Check 2: the output powers over all M hydrophones sum to M.  The
+    # output energy is divided by the input length, so the tail that the
+    # channel adds to the output does not lower the power.
+    P = np.sum(r_all**2, axis=0) / len(passband)
+    print(
+        f"test_replay_power: N_s = {nsd}, sum of output powers / M = {np.sum(P) / M:.3f}"
+    )
+    assert abs(np.sum(P) / M - 1) < 0.05, (
+        f"Output powers sum to {np.sum(P):.3f}, not M = {M}, with N_s = {nsd} "
+        f"and h_hat normalized to M/N_s."
+    )
 
 
 # ---------------------------------------------------------------------------

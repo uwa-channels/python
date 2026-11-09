@@ -97,7 +97,7 @@ This repository includes automated testing via [GitHub Actions](https://github.c
 
 | Test | What it verifies |
 |------|-----------------|
-| `test_replay` | Generates random mobile channels ({static, mobile} × {theta\_hat, phi\_hat}), transmits a signal, and checks that cross-correlation peaks match the true multipath structure; also checks that `array_index` isolates individual hydrophones and that the output power scaling is O(1). |
+| `test_replay` | Generates random mobile channels ({static, mobile} × {theta\_hat, phi\_hat}), transmits a signal, and checks that cross-correlation peaks match the true multipath structure; also checks that `array_index` isolates individual hydrophones, and that with `h_hat` normalized to M/N_s (N_s = 1 and 2), a unit-power signal replayed through all M hydrophones over the full channel gives output powers that sum to M. |
 | `test_noise` | Verifies output size, spectral shape (17 dB/decade), spatial correlation (theoretical vs. sample), bandpass filtering, per-channel power scaling by `beta`, Gaussianity (α = 2), and heavy-tail behavior (α < 2). |
 | `test_unpack` | Tests all tracking modes (none, theta\_hat, phi\_hat, f\_resamp, and combinations) for correct impulse response reconstruction. |
 | `test_io` | Writes the same channel and noise as both `-v7.3` and MAT v5, and checks that `load_channel` and `load_noise` hand `replay` and `noisegen` identical data either way. |
